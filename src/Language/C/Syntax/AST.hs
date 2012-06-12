@@ -52,7 +52,9 @@ module Language.C.Syntax.AST (
   CBuiltin, CBuiltinThing(..),
   -- * Constants
   CConst, CStrLit, cstringOfLit, liftStrLit,
-  CConstant(..), CStringLiteral(..)
+  CConstant(..), CStringLiteral(..),
+  -- * Annoated type class
+  Annotated(..)
 ) where
 import Data.List
 import Language.C.Syntax.Constants
