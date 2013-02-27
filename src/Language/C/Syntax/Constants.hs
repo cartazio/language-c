@@ -215,6 +215,10 @@ isSChar '\"' = False
 isSChar '\n' = False
 isSChar c = isAsciiSourceChar c
 
+showOct' :: Int -> String
+showOct' i = replicate (3 - length s) '0' ++ s
+  where s = showOct i ""
+
 escapeChar :: Char -> String
 escapeChar '\\' = "\\\\"
 escapeChar '\a' = "\\a"
@@ -225,7 +229,7 @@ escapeChar '\n' = "\\n"
 escapeChar '\r' = "\\r"
 escapeChar '\t' = "\\t"
 escapeChar '\v' = "\\v"
-escapeChar c  | (ord c) < 512   = '\\' : showOct (ord c) ""
+escapeChar c  | (ord c) < 512   = '\\' : showOct' (ord c)
               | otherwise       = '\\' : 'x'  : showHex (ord c) ""
 
 unescapeChar :: String -> (Char, String)
@@ -245,10 +249,15 @@ unescapeChar ('\\':c:cs)  = case c of
        '"'  -> ('"', cs)
        'x'  -> case head' "bad escape sequence" (readHex cs) of
                  (i, cs') -> (toEnum i, cs')
-       _    -> case head' "bad escape sequence" (readOct (c:cs)) of
+       _    -> case head' "bad escape sequence" (readOct' (c:cs)) of
                  (i, cs') -> (toEnum i, cs')
 unescapeChar (c   :cs)    = (c, cs)
 unescapeChar []  = error $ "unescape char: empty string"
+
+readOct' :: ReadS Int
+readOct' s = map (\(i, cs) -> (i, cs ++ rest)) (readOct octStr)
+  where octStr = takeWhile isOctDigit $ take 3 s
+        rest = drop (length octStr) s
 
 unescapeString :: String -> String
 unescapeString [] = []
