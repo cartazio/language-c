@@ -42,7 +42,7 @@ typeError :: MonadCError m => NodeInfo -> String -> m a
 typeError = astError
 
 notFound :: Ident -> Either String a
-notFound i = fail $ "not found: " ++ identToString i
+notFound i = Left $ "not found: " ++ identToString i
 
 checkScalar' :: MonadCError m => NodeInfo -> Type -> m ()
 checkScalar' ni = typeErrorOnLeft ni . checkScalar
