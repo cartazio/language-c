@@ -34,10 +34,7 @@ import Data.Generics
 -- name (anonymous types).
 data SUERef =  AnonymousRef Name
              | NamedRef Ident
-    deriving (Typeable, Data, Ord, Eq)
-instance Show SUERef where
-    show (AnonymousRef name) = "$" ++ show (nameId name)
-    show (NamedRef ident) = identToString ident
+    deriving (Typeable, Data, Ord, Eq, Show) --, Read
 
 -- | Return true if the struct\/union\/enum reference is anonymous.
 isAnonymousRef :: SUERef -> Bool
@@ -48,7 +45,7 @@ isAnonymousRef _ = False
 data Ident = Ident String       -- lexeme
                    {-# UNPACK #-}   !Int     -- hash to speed up equality check
                    NodeInfo                   -- attributes of this ident. incl. position
-             deriving (Data,Typeable)
+             deriving (Data,Typeable,Show) -- Read
 
 -- the definition of the equality allows identifiers to be equal that are
 -- defined at different source text positions, and aims at speeding up the
@@ -61,10 +58,6 @@ instance Eq Ident where
 --
 instance Ord Ident where
   compare (Ident s h _) (Ident s' h' _) = compare (h, s) (h', s')
-
--- for displaying identifiers
-instance Show Ident where
-  showsPrec _ ide = showString ("\"" ++ identToString ide ++ "\"")
 
 -- identifiers are attributed
 instance CNode Ident where

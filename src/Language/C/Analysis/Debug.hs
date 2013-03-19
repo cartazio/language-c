@@ -89,7 +89,8 @@ instance Pretty EnumTypeRef where
 instance Pretty Ident where
     pretty = text . identToString
 instance Pretty SUERef where
-    pretty ref = text (show ref)
+    pretty (AnonymousRef name) = text $ "$" ++ show (nameId name)
+    pretty (NamedRef ident) = pretty ident
 instance Pretty TagDef where
     pretty (CompDef compty) = pretty compty
     pretty (EnumDef enumty) = pretty enumty

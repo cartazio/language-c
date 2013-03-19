@@ -20,6 +20,7 @@ exportEnumType, exportEnumTypeDecl, exportEnumTypeRef,
 )
 where
 import Language.C.Data.Ident
+import Language.C.Data.Name (nameId)
 import Language.C.Data.Node
 import Language.C.Syntax.AST
 import Language.C.Analysis.SemRep
@@ -163,8 +164,10 @@ exportEnumType (EnumType sue_ref enumerators attrs node_info) = [CEnumType enum 
 exportEnumTypeRef :: EnumType -> [CTypeSpec]
 exportEnumTypeRef (EnumType sue_ref _ _ node_info) = exportEnumTypeDecl (EnumTypeRef sue_ref node_info)
 
+-- XXX: relies on a the source program not having any $'s in it
 exportSUERef :: SUERef -> Maybe Ident
-exportSUERef = Just . internalIdent . show -- relies on a the source program not having any $'s in it
+exportSUERef (AnonymousRef name) = Just (internalIdent $ "$" ++ show (nameId name))
+exportSUERef (NamedRef ident) = Just ident
 
 exportMemberDecl :: MemberDecl -> CDecl
 exportMemberDecl (AnonBitField ty expr node_info) =
