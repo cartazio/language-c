@@ -1,5 +1,5 @@
 {-# LANGUAGE MultiParamTypeClasses, TypeSynonymInstances, FlexibleContexts,FlexibleInstances,
-             PatternSignatures, PatternGuards, RankNTypes, ScopedTypeVariables #-}
+             PatternGuards, RankNTypes, ScopedTypeVariables #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Language.C.Analysis.TravMonad

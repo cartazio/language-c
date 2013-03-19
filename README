@@ -10,9 +10,9 @@ cabal install
 
 -- or --
 
-runhaskell Setup configure FLAGS
-runhaskell Setup build
-runhaskell Setup install
+runhaskell Setup.hs configure FLAGS
+runhaskell Setup.hs build
+runhaskell Setup.hs install
 
 Provide the set of flags passing
  --flags="<flags-seperated-by-space>"
@@ -20,7 +20,7 @@ to configure.
 
 == Compatibility ==
 
-Tested with ghc-6.12 (Ubuntu), ghc-7.0 (OSX 10.5, Linux) and ghc-7.2 (Linux).
+Tested with ghc-7.2 (Ubuntu) and ghc-7.4 (Ubuntu).
 It is recommended to use the most recent platform release: http://hackage.haskell.org/platform/.
 
 == Sources ==
