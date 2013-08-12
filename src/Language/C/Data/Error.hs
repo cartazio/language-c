@@ -147,9 +147,10 @@ showErrorInfo :: String -> ErrorInfo -> String
 showErrorInfo short_msg (ErrorInfo level pos msgs) =
     header ++ showMsgLines (if null short_msg then msgs else short_msg:msgs)
     where
-    header = (posFile pos) ++ ":" ++ show (posRow pos) ++ ": " ++
-             "(column " ++ show (posColumn pos) ++ ") " ++
-             "[" ++ show level ++ "]"
+    header = showPos pos ++ "[" ++ show level ++ "]"
+    showPos p | isSourcePos p = (posFile p) ++ ":" ++ show (posRow pos) ++ ": " ++
+                                "(column " ++ show (posColumn pos) ++ ") "
+              | otherwise = show p ++ ":: "
     showMsgLines []     = internalErr "No short message or error message provided."
     showMsgLines (x:xs) = indent ++ ">>> " ++ x ++ "\n" ++ unlines (map (indent++) xs)
 

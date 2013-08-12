@@ -82,7 +82,7 @@ prettyUsingInclude (CTranslUnit edecls _) =
   (vcat $ map (either includeHeader pretty) mappedDecls)
   where
     (headerFiles,mappedDecls) = foldr addDecl (Set.empty,[]) $ map tagIncludedDecls edecls
-    tagIncludedDecls edecl | isHeaderFile ((posFile . posOf) edecl) = Left ((posFile . posOf) edecl)
+    tagIncludedDecls edecl | maybe False isHeaderFile (fileOfNode edecl) = Left ((posFile . posOf) edecl)
                            | otherwise = Right edecl
     addDecl decl@(Left headerRef) (headerSet, ds)
       | Set.member headerRef headerSet = (headerSet, ds)

@@ -72,7 +72,7 @@ globalDeclStats file_filter gmap =
     (all_decls,(enumerators,objDefs,funDefs)) = splitIdentDecls True (gObjs gmap')
     (tagDefs,typeDefs) = (gTags gmap', gTypeDefs gmap')
     filterFile :: (CNode n) => n -> Bool
-    filterFile = file_filter . posFile . posOfNode . nodeInfo
+    filterFile = maybe True file_filter . fileOfNode . nodeInfo
 
 instance (Pretty a, Pretty b) => Pretty (Either a b) where
     pretty = either pretty pretty
