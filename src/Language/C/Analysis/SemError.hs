@@ -28,10 +28,18 @@ import Language.C.Data.Node
 -- here are the errors available
 
 -- | InvalidASTError is caused by the violation of an invariant in the AST
-newtype InvalidASTError = InvalidAST ErrorInfo deriving (Typeable,Error)
+newtype InvalidASTError = InvalidAST ErrorInfo deriving (Typeable)
+
+instance Error InvalidASTError where
+    errorInfo (InvalidAST ei) = ei
+    changeErrorLevel (InvalidAST ei) lvl' = InvalidAST (changeErrorLevel ei lvl')
 
 -- | BadSpecifierError is caused by an invalid combination of specifiers
-newtype BadSpecifierError = BadSpecifierError ErrorInfo deriving (Typeable,Error)
+newtype BadSpecifierError = BadSpecifierError ErrorInfo deriving (Typeable)
+
+instance Error BadSpecifierError where
+    errorInfo (BadSpecifierError ei) = ei
+    changeErrorLevel (BadSpecifierError ei) lvl' = BadSpecifierError (changeErrorLevel ei lvl')
 
 -- | RedefError is caused by an invalid redefinition of the same identifier or type
 data RedefError = RedefError ErrorLevel RedefInfo deriving Typeable
