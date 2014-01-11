@@ -80,10 +80,9 @@ $digit    = 0-9
 $digitNZ  = 1-9
 $hexdigit = [0-9a-fA-F]
 
-$inchar   = \0-\255 # [ \\ \' \n \r ]       -- valid character in char constant
-$instr    = \0-\255 # [ \\ \" \n \r ]       -- valid character in a string literal
-$anyButNL = \0-\255 # \n
-$infname  = \ -\127 # [ \\ \" ]             -- valid character in a filename
+$inchar   = . # [ \\ \' \n \r ]       -- valid character in char constant
+$instr    = . # [ \\ \" \n \r ]       -- valid character in a string literal
+$infname  = . # [ \\ \" ]             -- valid character in a filename
 
 @sp  = $space*
 
@@ -149,14 +148,14 @@ $white+         ;
 -- * we simply ignore any #pragma (but take care to update the position
 --   information)
 --
-\#$space*pragma$anyButNL*$eol   ;
+\#$space*pragma.*$eol   ;
 
 -- #ident directive, eg used by rcs/cvs
 --
 -- * we simply ignore any #ident (but take care to update the position
 --   information)
 --
-\#$space*ident$anyButNL*$eol    ;
+\#$space*ident.*$eol    ;
 
 -- identifiers and keywords (follows K&R A2.3 and A2.4)
 --
