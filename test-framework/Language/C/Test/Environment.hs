@@ -28,13 +28,14 @@ getEnvFlag,getEnvConfig,
 isPreprocessedFile,MungeResult(..),mungeCcArgs,
 )
 where
+import Control.Exception (catch)
 import Control.Monad (liftM)
 import Data.Char (toLower)
 import Data.List (isPrefixOf, isSuffixOf)
 import qualified Data.Map as Map
-import System.IO
 import System.Environment
 import System.FilePath (combine)
+import System.IO
 import Text.PrettyPrint
 
 -- | Takes a list of additional environment variable descriptions, and produces a document providing help
@@ -103,11 +104,11 @@ getEnvConfig = do
 
 getEnvFlag :: String -> IO Bool
 getEnvFlag envVar = do
-  envFlag <- getEnv envVar `catch` \_ -> return "0"
+  envFlag <- getEnv envVar `catch` (\e -> return ((e :: IOError) `seq` "0"))
   return $ case envFlag of
     _ | envFlag == "" || envFlag == "0" || "f" `isPrefixOf` (map toLower envFlag) -> False
       | otherwise                                                                 -> True
-      
+
 isPreprocessedFile :: String -> Bool
 isPreprocessedFile = (".i" `isSuffixOf`)
 

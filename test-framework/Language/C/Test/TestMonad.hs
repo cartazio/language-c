@@ -22,6 +22,7 @@ dbgMsg,addTestM,liftIOCatched,exitTest,errorOnInit,time,withTempFile_,withTempFi
 defaultMain,
 )
 where
+import Control.Exception (catch)
 import Control.Monad.Cont
 import Control.Monad.Reader
 import Control.Monad.State
