@@ -1,4 +1,6 @@
-#include <stdio.h>
+/* #include <stdio.h> */
+int printf(const char * restrict format, ...);
+
 /* Test if-else pretty-printing */
 int main () {
   int inp = 0;
