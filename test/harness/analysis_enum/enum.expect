@@ -16,6 +16,7 @@ Global Declarations
             e0a  ~>  <econst c> e0a  =  -2 + 2
             emm  ~>  <econst c> emm  =  -2
     declarations
+            printf  ~>  declaration printf | function/external | int (const char * __restrict format, ...)
     objects
     functions
             main  ~>  function main | function/external | int ()

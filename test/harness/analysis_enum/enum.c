@@ -1,4 +1,4 @@
-#include <stdio.h>
+int printf(const char * restrict format, ...);
 #define DBG(fmt,val) (printf(#val ": " fmt "\n",val))
 enum a { e0, e1, e2, e3 };
 enum b { e4 = e3 + 1, e5, e9 = e3*3, e10 };
