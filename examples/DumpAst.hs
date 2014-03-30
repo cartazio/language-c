@@ -20,7 +20,7 @@ main = do
 	when (length args < 1) usageErr
 	let (opts,input_file) = (init args, last args)
 	ast <- errorOnLeftM "Parse Error" $ parseCFile (newGCC "gcc") Nothing opts input_file
-	putStrLn $ pprint $ parseModule $ decorate $ show $ fmap (const ShowPlaceholder) ast
+	putStrLn $ (decorate (shows (fmap (const ShowPlaceholder) ast)) "")
 
 errorOnLeft :: (Show a) => String -> (Either a b) -> IO b
 errorOnLeft msg = either (error . ((msg ++ ": ")++).show) return
@@ -32,8 +32,5 @@ data ShowPlaceholder = ShowPlaceholder
 instance Show ShowPlaceholder where
   showsPrec _ ShowPlaceholder = showString "_"
 
-pprint (ParseOk hsm) = prettyPrint hsm
-pprint (ParseFailed loc msg) = error $ show loc ++ ": " ++ msg
-
-decorate ast = "foo (" ++ ast ++ ") = undefined"
+decorate app = showString "(" . app . showString ")"
 
