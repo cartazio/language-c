@@ -1176,8 +1176,10 @@ enumerator_list
 
 enumerator :: { (Ident, Maybe CExpr) }
 enumerator
-  : identifier					{ ($1, Nothing) }
-  | identifier '=' constant_expression		{ ($1, Just $3) }
+  : identifier                              { ($1, Nothing) }
+  | identifier attr                         { ($1, Nothing) }
+  | identifier attr '=' constant_expression { ($1, Just $4) }
+  | identifier '=' constant_expression      { ($1, Just $3) }
 
 
 -- parse C type qualifier (C99 6.7.3)
@@ -2053,11 +2055,16 @@ attribute
   | ident '(' attribute_params ')' {% withNodeInfo $1 $ Just . CAttr $1 (reverse $3) }
   | ident '(' ')'					         {% withNodeInfo $1 $ Just . CAttr $1 [] }
 
+-- OS X 10.9 (Mavericks) makes use of more liberal attribute syntax
+-- that includes assignment-like expressions referencing version
+-- numbers.
+
 attribute_params :: { Reversed [CExpr] }
 attribute_params
   : constant_expression					              { singleton $1 }
+  | unary_expression assignment_operator unary_expression { Reversed [] }
   | attribute_params ',' constant_expression	{ $1 `snoc` $3 }
-
+  | attribute_params ',' unary_expression assignment_operator unary_expression { $1 }
 
 {
 

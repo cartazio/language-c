@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards, FlexibleContexts #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Language.C.Analysis.DeclAnalysis

@@ -66,7 +66,8 @@ import qualified Language.C.Analysis.DefTable as ST
 
 import Data.IntMap (insert, lookup)
 import Data.Maybe
-import Control.Monad(liftM)
+import Control.Applicative (Applicative(..))
+import Control.Monad (liftM, ap)
 import Prelude hiding (lookup)
 
 class (Monad m) => MonadName m where
@@ -403,6 +404,13 @@ withExtDeclHandler :: Trav s a -> (DeclEvent -> Trav s ()) -> Trav s a
 withExtDeclHandler action handler =
     do modify $ \st -> st { doHandleExtDecl = handler }
        action
+
+instance Functor (Trav s) where
+    fmap = liftM
+
+instance Applicative (Trav s) where
+    pure  = return
+    (<*>) = ap
 
 instance Monad (Trav s) where
     return x  = Trav (\s -> Right (x,s))

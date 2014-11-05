@@ -17,7 +17,7 @@ where
 import Language.C.Data.RList as RList
 import Language.C.System.Preprocess
 import Data.Maybe
-import System.Cmd
+import System.Process
 import System.Directory
 import Data.List
 
