@@ -26,7 +26,7 @@ import Data.Generics
 -- | Parsed entity attribute
 data NodeInfo = OnlyPos  Position {-# UNPACK #-} !PosLength        -- only pos and last token (for internal stuff only)
               | NodeInfo Position {-# UNPACK #-} !PosLength !Name  -- pos, last token and unique name
-           deriving (Data,Typeable)
+           deriving (Data,Typeable,Eq,Ord)
 
 instance Show NodeInfo where
     showsPrec d (OnlyPos p l) =
@@ -35,16 +35,16 @@ instance Show NodeInfo where
       (showString "(NodeInfo ") . (showsPrec d p) . (showString " ") . (showsPrec d l) . (showString " ") . (showsPrec d n) . (showString ")")
 
 -- name equality of attributes, used to define (name) equality of objects
-instance Eq NodeInfo where
-  (NodeInfo   _ _ id1) == (NodeInfo   _ _ id2) = id1 == id2
-  _               == _               =
-    error "Attributes: Attempt to compare `OnlyPos' attributes!"
+--instance Eq NodeInfo where
+--  (NodeInfo   _ _ id1) == (NodeInfo   _ _ id2) = id1 == id2
+--  _               == _               =
+--    error "Attributes: Attempt to compare `OnlyPos' attributes!"
 
 -- attribute ordering
-instance Ord NodeInfo where
-  (NodeInfo   _ _ id1) <= (NodeInfo   _ _ id2) = id1 <= id2
-  _               <= _               =
-    error "Attributes: Attempt to compare `OnlyPos' attributes!"
+--instance Ord NodeInfo where
+--  (NodeInfo   _ _ id1) <= (NodeInfo   _ _ id2) = id1 <= id2
+--  _               <= _               =
+--    error "Attributes: Attempt to compare `OnlyPos' attributes!"
 
 instance Pos NodeInfo where
   posOf (OnlyPos pos _) = pos
