@@ -1,0 +1,26 @@
+# Maintainance Release Procedure
+
+# bump version and update dependencies if necessary
+emacs language-c.cabal
+darcs record
+
+# apply patches
+darcs am *.patch
+
+# add minimal test for new functionality
+# (edit test/harness)
+
+# haskell updates
+# (update GHC to stable release)
+cabal update
+cabal install -p --upgrade-dependencies
+
+# regression test
+DEFAULT_BROWSER=firefox bash scripts/regression_test
+
+# upload to code.haskell.org
+darcs push
+
+# upload to hub.darcs.net and github (using patches)
+
+# upload to hackage (using website)

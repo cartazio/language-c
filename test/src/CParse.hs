@@ -26,7 +26,7 @@ import Language.C.Test.Framework
 import Language.C.Test.ParseTests
 import Language.C.Test.TestMonad
 
-nonParseEnvVar :: String 
+nonParseEnvVar :: String
 nonParseEnvVar = "CTEST_NON_PARSE"
 
 main :: IO ()
@@ -36,7 +36,7 @@ usage :: Doc
 usage =    text "./CParse [gcc-opts] file.(c|hc|i)"
         $$ nest 4 (text "Test Driver: Parses the given source file")
         $$ envHelpDoc [ (nonParseEnvVar, ("expected that the parse fails",Just "False")) ]
-        
+
 theParseTest :: [String] -> TestMonad ()
 theParseTest args =
   case mungeCcArgs args of
@@ -56,16 +56,15 @@ theParseTest' origFile gccArgs = do
     modify $ setTestRunResults (emptyTestResults (takeBaseName origFile) [cFile])
     parseResult <- runParseTest preFile (initPos cFile)
     case expectNonParse of
-      True -> 
+      True ->
         let parseTest1 = initializeTestResult (parseTestTemplate { testName = "01-fail-parse" }) [origFile] in
         addTestM $
-          setTestStatus parseTest1 $ 
+          setTestStatus parseTest1 $
             either (\(_,report) -> testOkUntimed (Just report)) -- no timing available
                    (\_ -> testFailNoReport "parse should fail, but succeeded")  parseResult
       False  ->
         let parseTest1 = initializeTestResult (parseTestTemplate { testName = "01-parse" }) [origFile] in
         addTestM $
-          setTestStatus parseTest1 $ 
+          setTestStatus parseTest1 $
             either (\(errMsg,report) -> testFailWithReport errMsg report)
                    (\(_,perf) -> testOkNoReport perf) parseResult
-  
