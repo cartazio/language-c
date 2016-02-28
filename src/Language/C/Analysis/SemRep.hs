@@ -390,6 +390,8 @@ data IntType =
     | TyUShort
     | TyInt
     | TyUInt
+    | TyInt128
+    | TyUInt128
     | TyLong
     | TyULong
     | TyLLong
@@ -405,6 +407,8 @@ instance Show IntType where
     show TyUShort = "unsigned short"
     show TyInt = "int"
     show TyUInt = "unsigned int"
+    show TyInt128 = "__int128"
+    show TyUInt128 = "unsigned __int128"
     show TyLong = "long"
     show TyULong = "unsigned long"
     show TyLLong = "long long"

@@ -203,6 +203,7 @@ goto		{ CTokGoto	_ }
 if		{ CTokIf	_ }
 inline		{ CTokInline	_ }
 int		{ CTokInt	_ }
+"__int128"  { CTokInt128 _ }
 long		{ CTokLong	_ }
 "__label__"	{ CTokLabel	_ }
 register	{ CTokRegister	_ }
@@ -453,7 +454,7 @@ selection_statement
   | if '(' expression ')' statement else statement
 	{% withNodeInfo $1 $ CIf $3 $5 (Just $7) }
 
-  | switch '(' expression ')' statement	
+  | switch '(' expression ')' statement
 	{% withNodeInfo $1 $ CSwitch $3 $5 }
 
 
@@ -831,6 +832,7 @@ basic_type_name
   | unsigned			{% withNodeInfo $1 $ CUnsigType }
   | "_Bool"			{% withNodeInfo $1 $ CBoolType }
   | "_Complex"			{% withNodeInfo $1 $ CComplexType }
+  | "__int128"      {% withNodeInfo $1 $ CInt128Type }
 
 
 -- A mixture of type qualifiers, storage class and basic type names in any
@@ -909,7 +911,7 @@ sue_declaration_specifier
 
   | sue_declaration_specifier declaration_qualifier
   	{ $1 `snoc` $2 }
-  	
+
   | sue_declaration_specifier attr
   	{ addTrailingAttrs $1 $2 }
 
@@ -939,7 +941,7 @@ sue_type_specifier
 
   | sue_type_specifier type_qualifier
   	{ $1 `snoc` CTypeQual $2 }
-  	
+
   | sue_type_specifier attr
     { addTrailingAttrs $1 $2 }
 
@@ -956,7 +958,7 @@ typedef_declaration_specifier :: { Reversed [CDeclSpec] }
 typedef_declaration_specifier
   : typedef_type_specifier storage_class
   	{ $1 `snoc` CStorageSpec $2 }
-  	
+
   | declaration_qualifier_list tyident
   	{% withNodeInfo $2 $ \at -> $1 `snoc` CTypeSpec (CTypeDef $2 at) }
 
@@ -1197,7 +1199,7 @@ type_qualifier_list :: { Reversed [CTypeQual] }
 type_qualifier_list
   : attrs_opt type_qualifier	             { reverseList (map CAttrQual $1) `snoc` $2 }
   | type_qualifier_list type_qualifier	     { $1 `snoc` $2 }
-  | type_qualifier_list attrs type_qualifier { ($1 `rappend` map CAttrQual $2) `snoc` $3}	
+  | type_qualifier_list attrs type_qualifier { ($1 `rappend` map CAttrQual $2) `snoc` $3}
 
 -- parse C declarator (C99 6.7.5)
 --

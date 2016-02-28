@@ -423,18 +423,20 @@ defaultMD =
   MachineDesc
   { iSize = \it ->
             case it of
-              TyBool   -> 1
-              TyChar   -> 1
-              TySChar  -> 1
-              TyUChar  -> 1
-              TyShort  -> 2
-              TyUShort -> 2
-              TyInt    -> 4
-              TyUInt   -> 4
-              TyLong   -> 4
-              TyULong  -> 4
-              TyLLong  -> 8
-              TyULLong -> 8
+              TyBool    -> 1
+              TyChar    -> 1
+              TySChar   -> 1
+              TyUChar   -> 1
+              TyShort   -> 2
+              TyUShort  -> 2
+              TyInt     -> 4
+              TyUInt    -> 4
+              TyLong    -> 4
+              TyULong   -> 4
+              TyLLong   -> 8
+              TyULLong  -> 8
+              TyInt128  -> 16
+              TyUInt128 -> 16
   , fSize = \ft ->
             case ft of
               TyFloat   -> 4
@@ -448,18 +450,20 @@ defaultMD =
   , voidSize = 1
   , iAlign = \it ->
              case it of
-               TyBool   -> 1
-               TyChar   -> 1
-               TySChar  -> 1
-               TyUChar  -> 1
-               TyShort  -> 2
-               TyUShort -> 2
-               TyInt    -> 4
-               TyUInt   -> 4
-               TyLong   -> 4
-               TyULong  -> 4
-               TyLLong  -> 8
-               TyULLong -> 8
+               TyBool    -> 1
+               TyChar    -> 1
+               TySChar   -> 1
+               TyUChar   -> 1
+               TyShort   -> 2
+               TyUShort  -> 2
+               TyInt     -> 4
+               TyUInt    -> 4
+               TyLong    -> 4
+               TyULong   -> 4
+               TyLLong   -> 8
+               TyULLong  -> 8
+               TyInt128  -> 16
+               TyUInt128 -> 16
   , fAlign = \ft ->
              case ft of
                TyFloat   -> 4

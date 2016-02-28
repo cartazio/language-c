@@ -437,6 +437,8 @@ canonicalTypeSpec = foldrM go TSNone where
                             = return$  TSNum$ nts { base = BaseChar }
     go (CIntType _)     tsa | (Just nts@(NumTypeSpec { base = NoBaseType })) <- getNTS tsa
                             = return$  TSNum$ nts { base = BaseInt }
+    go (CInt128Type _)  tsa | (Just nts@(NumTypeSpec { base = NoBaseType })) <- getNTS tsa
+                            = return$  TSNum$ nts { base = BaseInt }
     go (CFloatType _)   tsa | (Just nts@(NumTypeSpec { base = NoBaseType })) <- getNTS tsa
                             = return$  TSNum$ nts { base = BaseFloat }
     go (CDoubleType _)  tsa | (Just nts@(NumTypeSpec { base = NoBaseType })) <- getNTS tsa

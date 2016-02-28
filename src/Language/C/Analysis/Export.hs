@@ -113,6 +113,8 @@ exportIntType ty =
       TyUShort  -> [CUnsigType ni, CShortType ni]
       TyInt     -> [CIntType ni]
       TyUInt    -> [CUnsigType ni, CIntType ni]
+      TyInt128  -> [CInt128Type ni]
+      TyUInt128 -> [CUnsigType ni, CInt128Type ni]
       TyLong    -> [CLongType ni]
       TyULong   -> [CUnsigType ni,CLongType ni]
       TyLLong   -> [CLongType ni, CLongType ni]
