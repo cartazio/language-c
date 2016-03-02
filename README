@@ -2,7 +2,7 @@
 
 Language.C is a parser and pretty-printer framework for C99 and the extensions of gcc.
 
-See http://www.sivity.net/projects/language.c/
+See http://visq.github.io/language-c/
 
 == Build and Install ==
 
