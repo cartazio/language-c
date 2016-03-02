@@ -48,7 +48,7 @@ equiv: autogen
 render_tests: autogen
 	$(HC) $(OPT) -o bin/RenderTests$(SUFFIX) $(INCLUDE) --make src/RenderTests.hs
 	rm $(BUILD_DIR)/Main.o
-report_fatal: autogen
+report_fatal: autogen clean
 	$(HC) $(OPT) -o bin/ReportFatal$(SUFFIX) $(INCLUDE) --make src/ReportFatal.hs
 	rm $(BUILD_DIR)/Main.o
 check_args: autogen

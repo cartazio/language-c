@@ -1,5 +1,5 @@
 all:
-	ghc --make -O2  -prof Test.hs
+	ghc --make -O2 Test.hs
 	./Test > test.c
 	gcc -o test_out test.c
 	./test_out > test.out
