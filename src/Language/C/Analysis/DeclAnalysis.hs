@@ -358,12 +358,16 @@ tNumType :: (MonadCError m) => NumTypeSpec -> m (Either (FloatType,Bool) IntType
 tNumType (NumTypeSpec basetype sgn sz iscomplex) =
     case (basetype,sgn,sz) of
         (BaseChar,_,NoSizeMod)      | Signed <- sgn   -> intType TySChar
-                                      | Unsigned <- sgn -> intType TyUChar
-                                      | otherwise       -> intType TyChar
+                                    | Unsigned <- sgn -> intType TyUChar
+                                    | otherwise       -> intType TyChar
         (intbase, _, NoSizeMod)  | optBase BaseInt intbase ->
             intType$ case sgn of
                             Unsigned -> TyUInt
                             _        -> TyInt
+        (intbase, _, NoSizeMod)  | optBase BaseInt128 intbase ->
+            intType$ case sgn of
+                            Unsigned -> TyUInt128
+                            _        -> TyInt128
         (intbase, signed, sizemod)    | optBase BaseInt intbase, optSign Signed signed ->
             intType$ case sizemod of ShortMod    -> TyShort
                                      LongMod     -> TyLong
@@ -407,9 +411,9 @@ tTypeQuals = foldrM go (noTypeQuals,[]) where
 
 {-
 To canoicalize type specifiers, we define a canonical form:
-void | bool | (char|int|float|double) (signed|unsigned)? (long long?)? complex? | othertype
+void | bool | (char|int|int128|float|double)? (signed|unsigned)? (long long?)? complex? | othertype
 -}
-data NumBaseType = NoBaseType | BaseChar | BaseInt | BaseFloat | BaseDouble deriving (Eq,Ord)
+data NumBaseType = NoBaseType | BaseChar | BaseInt | BaseInt128 | BaseFloat | BaseDouble deriving (Eq,Ord)
 data SignSpec    = NoSignSpec | Signed | Unsigned deriving (Eq,Ord)
 data SizeMod     = NoSizeMod | ShortMod | LongMod | LongLongMod deriving (Eq,Ord)
 data NumTypeSpec = NumTypeSpec { base :: NumBaseType, signSpec :: SignSpec, sizeMod :: SizeMod, isComplex :: Bool  }
@@ -438,7 +442,7 @@ canonicalTypeSpec = foldrM go TSNone where
     go (CIntType _)     tsa | (Just nts@(NumTypeSpec { base = NoBaseType })) <- getNTS tsa
                             = return$  TSNum$ nts { base = BaseInt }
     go (CInt128Type _)  tsa | (Just nts@(NumTypeSpec { base = NoBaseType })) <- getNTS tsa
-                            = return$  TSNum$ nts { base = BaseInt }
+                            = return$  TSNum$ nts { base = BaseInt128 }
     go (CFloatType _)   tsa | (Just nts@(NumTypeSpec { base = NoBaseType })) <- getNTS tsa
                             = return$  TSNum$ nts { base = BaseFloat }
     go (CDoubleType _)  tsa | (Just nts@(NumTypeSpec { base = NoBaseType })) <- getNTS tsa

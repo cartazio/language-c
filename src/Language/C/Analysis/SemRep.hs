@@ -70,8 +70,8 @@ class HasCompTyKind a where
     compTag :: a -> CompTyKind
 
 -- | Composite type definitions (tags)
-data TagDef =  CompDef CompType	  --definition
-     	       | EnumDef EnumType      -- enum definition
+data TagDef =  CompDef CompType  --composite definition
+             | EnumDef EnumType  --enum definition
                deriving (Typeable, Data {-! ,CNode !-})
 
 instance HasSUERef TagDef where
@@ -111,9 +111,9 @@ instance (Declaration a, Declaration b) => Declaration (Either a b) where
 
 -- | identifiers, typedefs and enumeration constants (namespace sum)
 data IdentDecl = Declaration Decl           -- ^ object or function declaration
-	             | ObjectDef ObjDef           -- ^ object definition
-	             | FunctionDef FunDef         -- ^ function definition
-	             | EnumeratorDef Enumerator   -- ^ definition of an enumerator
+                     | ObjectDef ObjDef           -- ^ object definition
+                     | FunctionDef FunDef         -- ^ function definition
+                     | EnumeratorDef Enumerator   -- ^ definition of an enumerator
                deriving (Typeable, Data {-! ,CNode !-})
 
 instance Declaration IdentDecl where
