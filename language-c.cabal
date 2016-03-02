@@ -1,5 +1,5 @@
 Name:           language-c
-Version:        0.4.7
+Version:        0.5.0
 Cabal-Version:  >= 1.6
 Build-Type:     Simple
 License:        BSD3
@@ -8,8 +8,8 @@ Copyright:      LICENSE
 Author:         AUTHORS
 Maintainer:     benedikt.huber@gmail.com
 Stability:      experimental
-Homepage:       http://www.sivity.net/projects/language.c/
-Bug-reports:    http://www.sivity.net/projects/language.c/
+Homepage:       http://visq.github.io/language-c/
+Bug-reports:    https://github.com/visq/language-c/issues/
 
 Synopsis:       Analysis and generation of C code
 Description:    Language C is a haskell library for the analysis and generation of C code.
