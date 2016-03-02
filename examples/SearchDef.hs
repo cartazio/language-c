@@ -37,22 +37,23 @@ main = do
     where
     checkResult :: (Show a) => String -> (Either a b) -> IO b
     checkResult label = either (error . (label++) . show) return
-    
-    printDecl def_id (CTranslUnit decls _) = 
+
+    printDecl :: NodeInfo -> CTranslUnit -> IO ()
+    printDecl def_id (CTranslUnit decls _) =
       let decls' = filter (maybe False (posFile (posOfNode def_id) ==).fileOfNode) decls in
       mapM_ (printIfMatch def_id) (zip decls' (map Just (tail decls') ++ [Nothing]))
-    printIfMatch def (decl,Just next_decl) | posOfNode def >= posOf decl && 
+    printIfMatch def (decl,Just next_decl) | posOfNode def >= posOf decl &&
                                              posOfNode def < posOf next_decl = (print . pretty) decl
                                            | otherwise = return ()
     printIfMatch def (decl, Nothing) | posOfNode def >= posOf decl = (print . pretty) decl
                                      | otherwise = return ()
-    searchDef globs term = 
+    searchDef globs term =
       case analyseSearchTerm term of
         Left tag -> fmap nodeInfo (Map.lookup tag (gTags globs))
         Right ident ->     fmap nodeInfo (Map.lookup ident (gObjs globs))
                        <|> fmap nodeInfo (Map.lookup ident (gTypeDefs globs))
                        <|> fmap nodeInfo (Map.lookup (NamedRef ident) (gTags globs))
-    analyseSearchTerm term = 
+    analyseSearchTerm term =
       case words term of
         [tag,name] | tag `elem` (words "struct union enum") -> Left $ NamedRef (internalIdent name)
         [ident] -> Right (internalIdent ident)

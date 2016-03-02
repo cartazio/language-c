@@ -1,5 +1,5 @@
 {-# LANGUAGE PatternGuards #-}
--- /ComputeSize 'comp' compute_size.c | gcc -x c -o compute_size_hs - && ./compute_size_hs 
+-- /ComputeSize 'comp' compute_size.c | gcc -x c -o compute_size_hs - && ./compute_size_hs
 module Main where
 import System.Environment ; import System.IO
 import System.FilePath    ;
@@ -16,15 +16,15 @@ import Language.C.Analysis.Export -- [starting point for exporting SemRep to AST
 
 main :: IO ()
 main = do
-    let usage = error "Example Usage: ./ScanFile 'pattern' -I/usr/include my_file.c"
+    let usage = error "Example Usage: ./ComputeSize 'pattern' -I/usr/include my_file.c"
     args <- getArgs
     when (length args < 2) usage
     let (pat,args')   = (head &&& tail) args
     let (opts,c_file) = (init &&& last) args'
 
-    let compiler = newGCC "gcc" 
+    let compiler = newGCC "gcc"
     ast <- parseCFile compiler Nothing opts c_file >>= checkResult "[parsing]"
-    
+
     (globals,warnings) <- (runTrav_ >>> checkResult "[analysis]") $ analyseAST ast
     mapM (hPutStrLn stderr . show) warnings
     putStrLn "#include <stdio.h>"
@@ -34,7 +34,7 @@ main = do
     checkResult label = either (error . (label++) . show) return
 
 generateSizeTests :: String -> GlobalDecls -> CTranslUnit
-generateSizeTests pat globals = 
+generateSizeTests pat globals =
       flip CTranslUnit undefNode $
       -- forward declare all composite types
          map declareComp (Map.elems all_comps)
@@ -57,11 +57,11 @@ generateSizeTests pat globals =
     fromComp (CompDef struct_union) = Just struct_union
     fromComp (EnumDef _) = Nothing
     fromCompTyDef (TypeDef name ty _ _) =
-      case ty of 
+      case ty of
         (DirectType (TyComp ref@(CompTypeRef sueref tag _)) _ _) ->
             Just (sueref,(ref,name))
         _ -> Nothing
-    
+
 filterDefs :: (CNode v, Ord k) => String -> Map k v -> Map k v
 filterDefs pat = Map.filter isInCFile
     where
@@ -69,20 +69,20 @@ filterDefs pat = Map.filter isInCFile
 
 -- a small fixpoint algorithm to find the correct order and all references
 computeRefClosure :: Map SUERef CompType -> Map SUERef CompType -> [CompType]
-computeRefClosure all_comps initial_comps = 
+computeRefClosure all_comps initial_comps =
     fixCont addReferenced ([], Map.elems initial_comps, (Map.empty,Map.empty))
     where
-    fixCont f = fix $ \close args -> 
+    fixCont f = fix $ \close args ->
         let args'@(result',todo',_) = f args in (if null todo' then reverse result' else close args')
     addReferenced (result,[],ms) = (result,[],ms)
     addReferenced (result,(t:ts),(visit,enter)) | Map.member (sueRef t) enter = (result,ts,(visit,enter))
-                                                | Map.member (sueRef t) visit = 
+                                                | Map.member (sueRef t) visit =
                                                 (t:result,ts,(visit,Map.insert (sueRef t) t enter))
-                                                | otherwise = 
+                                                | otherwise =
         let refd = referenced t in (result, refd++(t:ts), (Map.insert (sueRef t) t visit,enter))
     referenced (CompType _ _ members _ _) = mapMaybe getRefdComp members
     getRefdComp memberDecl = fromDirectRefdType (declType memberDecl) >>= fromCompTy
-    fromCompTy (TyComp (CompTypeRef ref _ _)) 
+    fromCompTy (TyComp (CompTypeRef ref _ _))
         | (Just r) <- Map.lookup ref all_comps = Just r
         | otherwise = error $ "Internal Error: Could not find definition for "++show ref
     fromCompTy _ = Nothing
@@ -127,8 +127,4 @@ genSizeTest typeDefs tys = either (error.show) fromExtDecl $
         Just (_,tyident) -> Just (identToString tyident)
         Nothing          -> Nothing -- ignoring inaccessible anonymous type
     getTagStr ref@(NamedRef _) tag =
-      Just (show tag ++ " " ++ show ref)    
-
-compileAndRunAST _ _ file = 
-    case file of
-        (CTranslUnit decls _) -> mapM_ (print . pretty) decls
+      Just (show tag ++ " " ++ show ref)
