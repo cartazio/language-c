@@ -18,9 +18,13 @@ cabal install -p --upgrade-dependencies
 # regression test
 DEFAULT_BROWSER=firefox bash scripts/regression_test
 
+# tag
+darcs tag language-c-0.5.0
+
 # upload to code.haskell.org
 darcs push
 
-# upload to hub.darcs.net and github (using patches)
+# update hub.darcs.net
+# update github mirror (darcs-2-git)
 
 # upload to hackage (using website)
