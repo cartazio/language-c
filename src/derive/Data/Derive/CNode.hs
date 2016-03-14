@@ -84,11 +84,16 @@ matchNodeInfo ctor = ctorArgs ctor >>= tryNodeInfoArg
 
 -- ported from TH.Helpers
 instanceContext :: [String] -> String -> Decl -> [Decl] -> Decl
-instanceContext reqs cls dat defs = InstDecl noLoc ctx className [hed] (map InsDecl defs)
+instanceContext reqs cls dat defs = InstDecl noLoc Nothing [] ctx className [hed] (map InsDecl defs)
     where
         vars = [Ident ('t' : show i) | i <- [1..dataDeclArity dat]]
         ctx = [ ClassA (qname req) [TyVar var] | req <- reqs, var <- vars]
         className = qname cls
         hed = (if not (null vars) then TyParen else id) $
               tyApp (TyCon $ qname (dataDeclName dat)) (map TyVar vars)
+
+-- remove Bang or unpack annotation
+fromBangType :: Type -> Type
+fromBangType (TyBang _ ty) = fromBangType ty
+fromBangType ty = ty
 

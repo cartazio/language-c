@@ -32,7 +32,13 @@ genAnnotatedInst :: FullDataDecl -> DeriveM [Decl]
 genAnnotatedInst (_,dat) = do
   let ctors = dataDeclCtors dat
   (annotDecls, amapDecls) <- liftM unzip $ mapM (annotClause "annotation" "amap") ctors
-  return [ InstDecl noLoc [] (qname "Annotated") [TyCon $ qname (dataDeclName dat)] (map InsDecl [ FunBind annotDecls, FunBind amapDecls ]) ]
+  return [ InstDecl noLoc -- SrcLoc
+                    Nothing -- Maybe Overlap
+                    [] -- TyVarBind
+                    [] -- Context
+                    (qname "Annotated") -- QName
+                    [TyCon $ qname (dataDeclName dat)] -- [Type]
+                    (map InsDecl [ FunBind annotDecls, FunBind amapDecls ]) ] -- [InstDecl]
 
 annotClause :: String -> String -> CtorDecl -> DeriveM (Match, Match)
 annotClause annot amap ctor = do
@@ -63,11 +69,17 @@ isVarName :: Type -> Bool
 isVarName (TyVar _) = True
 isVarName _         = False
 
-ctorArgs :: CtorDecl -> DeriveM [(Integer,BangType)]
+-- remove Bang or unpack annotation
+fromBangType :: Type -> Type
+fromBangType (TyBang _ ty) = fromBangType ty
+fromBangType ty = ty
+
+-- constructor arguments
+ctorArgs :: CtorDecl -> DeriveM [(Integer,Type)]
 ctorArgs ctor@(Left _)  = return $ zip [(1::Integer)..] $ map snd (ctorDeclFields ctor)
 ctorArgs ctor@(Right _) = fail   $ "CNode: GADTs are not supported: " ++ show ctor
 
-selectDelegateArg :: [(Integer, BangType)] -> DeriveM Type
+selectDelegateArg :: [(Integer, Type)] -> DeriveM Type
 selectDelegateArg args =
   case args of
     []       -> fail "Select Delegate Argument: Constructor has no argument"
@@ -76,7 +88,7 @@ selectDelegateArg args =
       ty     -> fail $ "Select Delegate Argument: Constructor is not of the form T x: " ++ show ty
     _xs      -> fail "Select Delegate Argument: Constructor has more than one argument"
 
-selectPolyArg :: [(Integer, BangType)] -> DeriveM (Integer, Name)
+selectPolyArg :: [(Integer, Type)] -> DeriveM (Integer, Name)
 selectPolyArg args =
   case filter (isVarName . fromBangType . snd) args of
         []             -> fail   $ "Select Polymorphic Argument: no type variable arguments in " ++ show args
@@ -86,7 +98,7 @@ selectPolyArg args =
 
 -- a little bit more powerful than simpleFun ;)
 funDecl :: String -> [Pat] -> Exp -> Match
-funDecl funName patterns rhs = Match noLoc (Ident funName) patterns Nothing (UnGuardedRhs rhs) (BDecls [])
+funDecl funName patterns rhs = Match noLoc (Ident funName) patterns Nothing (UnGuardedRhs rhs) Nothing
 
 matchCtor :: CtorDecl -> [(Integer, t)] -> String -> Pat
 matchCtor ctor ctorArgs varPrefix = PApp (qname (ctorDeclName ctor)) $ map matchArg ctorArgs
@@ -103,6 +115,15 @@ matchIndex ctor ctorArgs ix matchPat = PApp (qname (ctorDeclName ctor)) $ map ma
 data DeriveM a = DOk a | DErr String
 runDeriveM (DOk a)    = Right a
 runDeriveM (DErr msg) = Left msg
+instance Functor DeriveM where
+  fmap f (DOk a) = DOk (f a)
+  fmap _ (DErr msg) = DErr msg
+instance Applicative DeriveM where
+  pure x = DOk x
+  mf <*> ma = case (mf, ma) of
+    (DOk f, DOk a) -> DOk (f a)
+    (DErr msg, _)  -> DErr msg
+    (_, DErr msg)  -> DErr msg
 instance Monad DeriveM where
   return = DOk
   (>>=) (DErr msg) f = DErr msg
