@@ -112,8 +112,10 @@ defineTyDef (ctr,tydef) = CDeclExt (CDecl specs [(Just$ CDeclr (Just tydef) [] N
 -- This is were we'd like to have quasi-quoting.
 -- For now, as we lack any code generation facilies, we'll parse a string :)
 genSizeTest :: Map SUERef (CompTypeRef,Ident) -> [CompType] -> CExtDecl
-genSizeTest typeDefs tys = either (error.show) fromExtDecl $
-                  parseC (inputStreamFromString test) (initPos "genSizeTest") 
+genSizeTest typeDefs tys =
+      either (\e -> error $ "Failed to parse " ++ test ++ ": " ++ show e)
+             fromExtDecl
+             (parseC (inputStreamFromString test) (initPos "genSizeTest"))
     where
     fromExtDecl (CTranslUnit [decl] _ ) = decl
     fromExtDecl (CTranslUnit decls _) = error $ "Expected one declaration, but found: "++show (length decls)
@@ -126,5 +128,5 @@ genSizeTest typeDefs tys = either (error.show) fromExtDecl $
       case Map.lookup ref typeDefs of
         Just (_,tyident) -> Just (identToString tyident)
         Nothing          -> Nothing -- ignoring inaccessible anonymous type
-    getTagStr ref@(NamedRef _) tag =
-      Just (show tag ++ " " ++ show ref)
+    getTagStr (NamedRef name) tag =
+      Just (show tag ++ " " ++ identToString name)
