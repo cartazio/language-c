@@ -187,10 +187,17 @@ exportParamDecl paramdecl =
     in CDecl specs [(Just declr, Nothing , Nothing) ] (nodeInfo paramdecl)
 
 exportDeclAttrs :: DeclAttrs -> [CDeclSpec]
-exportDeclAttrs (DeclAttrs inline storage attrs) =
-       (if inline then [CTypeQual (CInlineQual ni)] else [])
+exportDeclAttrs (DeclAttrs fun_attrs storage attrs) =
+       map (CTypeQual . CFunSpecQual) (exportFunAttrs fun_attrs)
     ++ map (CStorageSpec) (exportStorage storage)
     ++ map (CTypeQual . CAttrQual) (exportAttrs attrs)
+
+-- | export function attributes to C function specifiers
+exportFunAttrs :: FunctionAttrs -> [CFunSpec]
+exportFunAttrs fattrs = catMaybes [inlQual, noretQual]
+  where
+    inlQual = if isInline fattrs then Just (CInlineQual ni) else Nothing
+    noretQual = if isNoreturn fattrs then Just (CNoreturnQual ni) else Nothing
 
 -- | express storage in terms of storage specifiers.
 --

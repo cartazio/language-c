@@ -13,10 +13,10 @@ builtins = foldr doIdent (foldr doTypeDef emptyDefTable typedefs) idents
         dName     s = VarName (builtinIdent s) Nothing
         param ty    = ParamDecl (VarDecl
                                  NoName
-                                 (DeclAttrs False (Auto False) [])
+                                 (DeclAttrs noFunctionAttrs (Auto False) [])
                                  ty) undefNode
-        fnAttrs     = DeclAttrs False (FunLinkage ExternalLinkage) []
-        varAttrs    = DeclAttrs False (Static InternalLinkage False) []
+        fnAttrs     = DeclAttrs noFunctionAttrs (FunLinkage ExternalLinkage) []
+        varAttrs    = DeclAttrs noFunctionAttrs (Static InternalLinkage False) []
         fnType r as = FunctionType (FunType r (map param as) False) noAttributes
         fnType' r as = FunctionType (FunType r (map param as) True) noAttributes
         func n r as = Declaration

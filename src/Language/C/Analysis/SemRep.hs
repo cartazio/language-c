@@ -30,6 +30,7 @@ TypeDef(..),identOfTypeDef,
 VarDecl(..),
 -- * Declaration attributes
 DeclAttrs(..),isExtDecl,
+FunctionAttrs(..), functionAttrs, noFunctionAttrs,
 Storage(..),declStorage,ThreadLocal,Register,
 Linkage(..),hasLinkage,declLinkage,
 -- * Types
@@ -251,7 +252,7 @@ data MemberDecl = MemberDecl VarDecl (Maybe Expr) NodeInfo
 
 instance Declaration MemberDecl where
   getVarDecl (MemberDecl vd _ _) = vd
-  getVarDecl (AnonBitField ty _ _) = VarDecl NoName (DeclAttrs False NoStorage []) ty
+  getVarDecl (AnonBitField ty _ _) = VarDecl NoName (DeclAttrs noFunctionAttrs NoStorage []) ty
 
 -- | @typedef@ definitions.
 --
@@ -277,13 +278,25 @@ isExtDecl = hasLinkage . declStorage
 -- | Declaration attributes of the form @DeclAttrs isInlineFunction storage linkage attrs@
 --
 -- They specify the storage and linkage of a declared object.
-data DeclAttrs = DeclAttrs Bool Storage Attributes
-                 -- ^ @DeclAttrs inline storage attrs@
+data DeclAttrs = DeclAttrs FunctionAttrs Storage Attributes
+                 -- ^ @DeclAttrs fspecs storage attrs@
                deriving (Typeable, Data)
 
 -- | get the 'Storage' of a declaration
 declStorage :: (Declaration d) => d -> Storage
 declStorage d = case declAttrs d of (DeclAttrs _ st _) -> st
+
+-- | get the `function attributes' of a declaration
+functionAttrs :: (Declaration d) => d -> FunctionAttrs
+functionAttrs d = case declAttrs d of (DeclAttrs fa _ _) -> fa
+
+-- Function attributes (inline, noreturn)
+data FunctionAttrs = FunctionAttrs { isInline :: Bool, isNoreturn :: Bool }
+  deriving (Eq, Ord, Typeable, Data)
+
+noFunctionAttrs :: FunctionAttrs
+noFunctionAttrs = FunctionAttrs { isInline = False, isNoreturn = False }
+
 
 -- In C we have
 --  Identifiers can either have internal, external or no linkage
@@ -474,7 +487,7 @@ instance Declaration Enumerator where
   getVarDecl (Enumerator ide _ enumty _) =
     VarDecl
       (VarName ide Nothing)
-      (DeclAttrs False NoStorage [])
+      (DeclAttrs noFunctionAttrs NoStorage [])
       (DirectType (typeOfEnumDef enumty) noTypeQuals noAttributes)
 
 -- | Type qualifiers: constant, volatile and restrict
@@ -564,24 +577,19 @@ type Stmt = CStat
 type Expr = CExpr
 -- GENERATED START
 
-
 instance CNode TagDef where
         nodeInfo (CompDef d) = nodeInfo d
         nodeInfo (EnumDef d) = nodeInfo d
-
 instance Pos TagDef where
         posOf x = posOf (nodeInfo x)
-
 
 instance CNode IdentDecl where
         nodeInfo (Declaration d) = nodeInfo d
         nodeInfo (ObjectDef d) = nodeInfo d
         nodeInfo (FunctionDef d) = nodeInfo d
         nodeInfo (EnumeratorDef d) = nodeInfo d
-
 instance Pos IdentDecl where
         posOf x = posOf (nodeInfo x)
-
 
 instance CNode DeclEvent where
         nodeInfo (TagEvent d) = nodeInfo d
@@ -590,100 +598,73 @@ instance CNode DeclEvent where
         nodeInfo (LocalEvent d) = nodeInfo d
         nodeInfo (TypeDefEvent d) = nodeInfo d
         nodeInfo (AsmEvent d) = nodeInfo d
-
 instance Pos DeclEvent where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode Decl where
         nodeInfo (Decl _ n) = n
-
 instance Pos Decl where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode ObjDef where
         nodeInfo (ObjDef _ _ n) = n
-
 instance Pos ObjDef where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode FunDef where
         nodeInfo (FunDef _ _ n) = n
-
 instance Pos FunDef where
         posOf x = posOf (nodeInfo x)
-
 
 instance CNode ParamDecl where
         nodeInfo (ParamDecl _ n) = n
         nodeInfo (AbstractParamDecl _ n) = n
-
 instance Pos ParamDecl where
         posOf x = posOf (nodeInfo x)
-
 
 instance CNode MemberDecl where
         nodeInfo (MemberDecl _ _ n) = n
         nodeInfo (AnonBitField _ _ n) = n
-
 instance Pos MemberDecl where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode TypeDef where
         nodeInfo (TypeDef _ _ _ n) = n
-
 instance Pos TypeDef where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode TypeDefRef where
         nodeInfo (TypeDefRef _ _ n) = n
-
 instance Pos TypeDefRef where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode CompTypeRef where
         nodeInfo (CompTypeRef _ _ n) = n
-
 instance Pos CompTypeRef where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode EnumTypeRef where
         nodeInfo (EnumTypeRef _ n) = n
-
 instance Pos EnumTypeRef where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode CompType where
         nodeInfo (CompType _ _ _ _ n) = n
-
 instance Pos CompType where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode EnumType where
         nodeInfo (EnumType _ _ _ n) = n
-
 instance Pos EnumType where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode Enumerator where
         nodeInfo (Enumerator _ _ _ n) = n
-
 instance Pos Enumerator where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode Attr where
         nodeInfo (Attr _ _ n) = n
-
 instance Pos Attr where
         posOf x = posOf (nodeInfo x)
 -- GENERATED STOP

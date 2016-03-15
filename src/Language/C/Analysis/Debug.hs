@@ -125,9 +125,9 @@ instance Pretty ParamDecl where
         text "abstract" <+> pretty declattrs <+> pretty name <+>
              text "::" <+> pretty ty
 instance Pretty DeclAttrs where
-    pretty (DeclAttrs inline storage attrs) =
-        (if inline then (text "inline") else empty) <+>
-        (hsep $ [ pretty storage, pretty attrs])
+    pretty (DeclAttrs fun_attrs storage attrs) =
+        hsep $ [ pretty fun_attrs, pretty storage, pretty attrs]
+
 instance Pretty Type where
   pretty ty = pretty (exportTypeDecl ty)
 instance Pretty TypeQuals where
@@ -156,6 +156,11 @@ instance Pretty EnumType where
 instance Pretty Enumerator where
     pretty (Enumerator ident expr enumty _) = text "<" <> text "econst" <+> pretty (sueRef enumty) <> text ">" <+>
                                               pretty ident <+> text " = " <+> pretty expr
+
+instance Pretty FunctionAttrs where
+    pretty fattrs = hsep [pIf isInline "inline", pIf isNoreturn "_Noreturn"]
+      where
+        pIf pred txt = if pred fattrs then text txt else empty
 
 instance Pretty Storage where
     pretty NoStorage = empty

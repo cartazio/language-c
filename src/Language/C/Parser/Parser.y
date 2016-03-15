@@ -203,9 +203,10 @@ goto		{ CTokGoto	_ }
 if		{ CTokIf	_ }
 inline		{ CTokInline	_ }
 int		{ CTokInt	_ }
-"__int128"  { CTokInt128 _ }
+"__int128"      { CTokInt128    _ }
 long		{ CTokLong	_ }
 "__label__"	{ CTokLabel	_ }
+"_Noreturn"     { CTokNoreturn  _ }
 register	{ CTokRegister	_ }
 restrict	{ CTokRestrict	_ }
 return		{ CTokReturn	_ }
@@ -552,7 +553,7 @@ sides doesn't matter.
 ---------------------------------------------------------------------------------------------------------------
 attr                       :-   __attribute__((..))
 storage_class              :-   typedef | extern | static | auto | register | __thread
-type_qualifier             :-   const | volatile | restrict | inline
+type_qualifier             :-   const | volatile | restrict | inline | _Noreturn
 type_qualifier_list        :-   type_qualifier+
 
 declaration_qualifier      :-   storage_class | type_qualifier
@@ -755,8 +756,9 @@ declaration_specifier
   | typedef_declaration_specifier	{ reverse $1 }	-- Typedef
 
 
--- A mixture of type qualifiers (const, volatile, restrict, inline) and storage class specifiers
--- (extern, static, auto, register, __thread), in any order, but containing at least one storage class specifier.
+-- A mixture of type qualifiers (const, volatile, restrict), function specifiers (inline,
+-- _Noreturn) and storage class specifiers (extern, static, auto, register, __thread),
+-- in any order, but containing at least one storage class specifier.
 --
 -- declaration_qualifier_list :- <permute> type_qualifier* storage_class+
 --
@@ -1184,16 +1186,17 @@ enumerator
   | identifier '=' constant_expression      { ($1, Just $3) }
 
 
--- parse C type qualifier (C99 6.7.3)
+-- parse C type qualifier (C99 6.7.3) and function specifier (C11 6.7.4)
 --
 type_qualifier :: { CTypeQual }
 type_qualifier
   : const		{% withNodeInfo $1 $ CConstQual }
   | volatile		{% withNodeInfo $1 $ CVolatQual }
   | restrict		{% withNodeInfo $1 $ CRestrQual }
-  | inline		{% withNodeInfo $1 $ CInlineQual }
+  | inline		{% withNodeInfo $1 $ CFunSpecQual . CInlineQual }
+  | "_Noreturn"         {% withNodeInfo $1 $ CFunSpecQual . CNoreturnQual }
 
--- a list containing at least one type_qualifier (const, volatile, restrict, inline)
+-- a list containing at least one type_qualifier (const, volatile, restrict, inline, _Noreturn)
 --    and additionally CAttrs
 type_qualifier_list :: { Reversed [CTypeQual] }
 type_qualifier_list

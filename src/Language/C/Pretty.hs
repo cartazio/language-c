@@ -252,8 +252,12 @@ instance Pretty CTypeQual where
     pretty (CConstQual _) = text "const"
     pretty (CVolatQual _) = text "volatile"
     pretty (CRestrQual _) = text "__restrict"
-    pretty (CInlineQual _) = text "inline"
+    pretty (CFunSpecQual fspec) = pretty fspec
     pretty (CAttrQual a)  = attrlistP [a]
+
+instance Pretty CFunSpec where
+    pretty (CInlineQual _) = text "inline"
+    pretty (CNoreturnQual _) = text "_Noreturn"
 
 instance Pretty CStructUnion where
     pretty (CStruct tag ident Nothing cattrs _) = pretty tag <+> attrlistP cattrs <+> maybeP identP ident

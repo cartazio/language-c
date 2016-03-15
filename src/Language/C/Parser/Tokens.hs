@@ -99,7 +99,8 @@ data CToken = CTokLParen   !PosLength            -- `('
             | CTokInt      !PosLength            -- `int'
             | CTokInt128   !PosLength            -- `__int128`
             | CTokLong     !PosLength            -- `long'
-            | CTokLabel    !PosLength            -- `__label__'
+            | CTokLabel    !PosLength            -- `__label__
+            | CTokNoreturn !PosLength            -- `_Noreturn'
             | CTokRegister !PosLength            -- `register'
             | CTokRestrict !PosLength            -- `restrict'
                                                 -- (or `__restrict',
@@ -220,6 +221,7 @@ posLenOfTok (CTokInline   pos  ) = pos
 posLenOfTok (CTokIf       pos  ) = pos
 posLenOfTok (CTokLong     pos  ) = pos
 posLenOfTok (CTokLabel    pos  ) = pos
+posLenOfTok (CTokNoreturn pos  ) = pos
 posLenOfTok (CTokRegister pos  ) = pos
 posLenOfTok (CTokRestrict pos  ) = pos
 posLenOfTok (CTokReturn   pos  ) = pos
@@ -318,6 +320,7 @@ instance Show CToken where
   showsPrec _ (CTokInt128   _  ) = showString "__int128"
   showsPrec _ (CTokLong     _  ) = showString "long"
   showsPrec _ (CTokLabel    _  ) = showString "__label__"
+  showsPrec _ (CTokNoreturn    _  ) = showString "_Noreturn"
   showsPrec _ (CTokRegister _  ) = showString "register"
   showsPrec _ (CTokRestrict _  ) = showString "restrict"
   showsPrec _ (CTokReturn   _  ) = showString "return"

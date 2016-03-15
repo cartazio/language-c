@@ -18,7 +18,7 @@ module Language.C.Analysis.DeclAnalysis (
   mergeOldStyle,
   -- * Dissecting type specs
   canonicalTypeSpec, NumBaseType(..),SignSpec(..),SizeMod(..),NumTypeSpec(..),TypeSpecAnalysis(..),
-  canonicalStorageSpec, StorageSpec(..),hasThreadLocalSpec, isTypeDef,
+  canonicalStorageSpec, StorageSpec(..), hasThreadLocalSpec, isTypeDef,
   -- * Helpers
   VarDeclInfo(..),
   tAttr,mkVarName,getOnlyDeclr,nameOfDecl,analyseVarDecl,analyseVarDecl'
@@ -53,8 +53,9 @@ tParamDecl :: (MonadTrav m) => CDecl -> m ParamDecl
 tParamDecl (CDecl declspecs declrs node) =
   do declr <- getParamDeclr
      -- analyse the variable declaration
-     (VarDeclInfo name is_inline storage_spec attrs ty declr_node) <- analyseVarDecl' True declspecs declr [] Nothing
-     when (is_inline) $ throwTravError (badSpecifierError node "parameter declaration with inline specifier")
+     (VarDeclInfo name fun_spec  storage_spec attrs ty declr_node) <- analyseVarDecl' True declspecs declr [] Nothing
+     when (isInline fun_spec || isNoreturn fun_spec) $
+       throwTravError (badSpecifierError node "parameter declaration with function specifier")
      -- compute storage of parameter (NoStorage, but might have a register specifier)
      storage <- throwOnLeft $ computeParamStorage node storage_spec
      let paramDecl = mkParamDecl name storage attrs ty declr_node
@@ -67,7 +68,7 @@ tParamDecl (CDecl declspecs declrs node) =
           [(Just declr,Nothing,Nothing)] -> return declr
           _ -> astError node "bad parameter declaration: multiple decls / bitfield or initializer present"
   mkParamDecl name storage attrs ty declr_node =
-    let vd = VarDecl name (DeclAttrs False storage attrs) ty in
+    let vd = VarDecl name (DeclAttrs noFunctionAttrs storage attrs) ty in
     case name of
       NoName -> AbstractParamDecl vd declr_node
       _ -> ParamDecl vd declr_node
@@ -82,16 +83,16 @@ computeParamStorage node spec       = Left . badSpecifierError node $ "Bad stora
 tMemberDecls :: (MonadTrav m) => CDecl -> m [MemberDecl]
 -- Anonymous struct or union members
 tMemberDecls (CDecl declspecs [] node) =
-  do let (storage_specs, _attrs, typequals, typespecs, is_inline) =
+  do let (storage_specs, _attrs, typequals, typespecs, funspecs) =
            partitionDeclSpecs declspecs
-     when is_inline $ astError node "member declaration with inline specifier"
+     when (not (null funspecs)) $ astError node "member declaration with function specifier"
      canonTySpecs <- canonicalTypeSpec typespecs
      ty <- tType True node typequals canonTySpecs [] []
      case ty of
        DirectType (TyComp _) _ _ ->
          return $ [MemberDecl
                    -- XXX: are these DeclAttrs correct?
-                   (VarDecl NoName (DeclAttrs False NoStorage []) ty)
+                   (VarDecl NoName (DeclAttrs noFunctionAttrs NoStorage []) ty)
                    Nothing node]
        _ -> astError node "anonymous member has a non-composite type"
 -- Named members
@@ -100,10 +101,11 @@ tMemberDecls (CDecl declspecs declrs node) = mapM (uncurry tMemberDecl) (zip (Tr
     tMemberDecl handle_sue_def (Just member_declr,Nothing,bit_field_size_opt) =
         -- TODO: use analyseVarDecl here, not analyseVarDecl'
         do var_decl <- analyseVarDecl' handle_sue_def declspecs member_declr [] Nothing
-           let (VarDeclInfo name is_inline storage_spec attrs ty declr_node) = var_decl
+           let (VarDeclInfo name fun_spec storage_spec attrs ty declr_node) = var_decl
            --
-           checkValidMemberSpec is_inline storage_spec
-           return $ MemberDecl (VarDecl name (DeclAttrs False NoStorage attrs) ty) bit_field_size_opt node
+           checkValidMemberSpec fun_spec storage_spec
+           return $ MemberDecl (VarDecl name (DeclAttrs noFunctionAttrs NoStorage attrs) ty)
+                               bit_field_size_opt node
     tMemberDecl handle_sue_def (Nothing,Nothing,Just bit_field_size) =
         do let (storage_specs, _attrs, typequals, typespecs, is_inline) = partitionDeclSpecs declspecs
            storage_spec  <- canonicalStorageSpec storage_specs
@@ -112,8 +114,8 @@ tMemberDecls (CDecl declspecs declrs node) = mapM (uncurry tMemberDecl) (zip (Tr
            --
            return $ AnonBitField typ bit_field_size node
     tMemberDecl _ _ = astError node "Bad member declaration"
-    checkValidMemberSpec is_inline storage_spec =
-        do  when (is_inline)                     $ astError node "member declaration with inline specifier"
+    checkValidMemberSpec fun_spec storage_spec =
+        do  when (fun_spec /= noFunctionAttrs)   $ astError node "member declaration with inline specifier"
             when (storage_spec /= NoStorageSpec) $ astError node "storage specifier for member"
             return ()
 
@@ -126,24 +128,24 @@ hasThreadLocalSpec (StaticSpec b) = b
 hasThreadLocalSpec (ExternSpec b) = b
 hasThreadLocalSpec _  = False
 
-data VarDeclInfo = VarDeclInfo VarName Bool {- is-inline? -} StorageSpec Attributes Type NodeInfo
+data VarDeclInfo = VarDeclInfo VarName FunctionAttrs StorageSpec Attributes Type NodeInfo
 
 analyseVarDecl' :: (MonadTrav m) =>
                   Bool -> [CDeclSpec] ->
                   CDeclr -> [CDecl] -> (Maybe CInit) -> m VarDeclInfo
 analyseVarDecl' handle_sue_def declspecs declr oldstyle init_opt =
-  do let (storage_specs, attrs, type_quals, type_specs, inline) =
+  do let (storage_specs, attrs, type_quals, type_specs, funspecs) =
            partitionDeclSpecs declspecs
      canonTySpecs <- canonicalTypeSpec type_specs
-     analyseVarDecl handle_sue_def storage_specs attrs type_quals canonTySpecs inline
+     analyseVarDecl handle_sue_def storage_specs attrs type_quals canonTySpecs funspecs
                     declr oldstyle init_opt
 
 -- | analyse declarators
 analyseVarDecl :: (MonadTrav m) =>
                   Bool -> [CStorageSpec] -> [CAttr] -> [CTypeQual] ->
-                  TypeSpecAnalysis -> Bool ->
+                  TypeSpecAnalysis -> [CFunSpec] ->
                   CDeclr -> [CDecl] -> (Maybe CInit) -> m VarDeclInfo
-analyseVarDecl handle_sue_def storage_specs decl_attrs typequals canonTySpecs inline
+analyseVarDecl handle_sue_def storage_specs decl_attrs typequals canonTySpecs fun_specs
                (CDeclr name_opt derived_declrs asmname_opt declr_attrs node)
                oldstyle_params init_opt
     = do -- analyse the storage specifiers
@@ -154,11 +156,11 @@ analyseVarDecl handle_sue_def storage_specs decl_attrs typequals canonTySpecs in
          attrs'       <- mapM tAttr (decl_attrs ++ declr_attrs)
          -- make name
          name         <- mkVarName node name_opt asmname_opt
-         return $ VarDeclInfo name inline storage_spec attrs' typ node
+         return $ VarDeclInfo name function_spec storage_spec attrs' typ node
     where
-        isInlineSpec (CInlineQual _) = True
-        isInlineSpec _ = False
-
+        updateFunSpec (CInlineQual _) f = f { isInline = True }
+        updateFunSpec (CNoreturnQual _) f = f { isNoreturn = True }
+        function_spec = foldr updateFunSpec noFunctionAttrs fun_specs
 
 -- return @True@ if the declarations is a type def
 isTypeDef :: [CDeclSpec] -> Bool
@@ -186,7 +188,8 @@ analyseTypeDecl (CDecl declspecs declrs node)
     | otherwise = astError node "Bad declarator for type declaration"
     where
     analyseTyDeclr (CDeclr Nothing derived_declrs Nothing attrs _declrnode)
-        | (not (null storagespec) || inline) = astError node "storage specifier for type declaration"
+        | (not (null storagespec) || not (null funspecs)) =
+            astError node "storage or function specifier for type declaration"
         | otherwise                          =
           do canonTySpecs <- canonicalTypeSpec typespecs
              t <- tType True node (map CAttrQual (attrs++attrs_decl) ++ typequals)
@@ -195,7 +198,7 @@ analyseTypeDecl (CDecl declspecs declrs node)
                Just n -> withDefTable (\dt -> (t, insertType dt n t))
                Nothing -> return t
         where
-        (storagespec, attrs_decl, typequals, typespecs, inline) = partitionDeclSpecs declspecs
+        (storagespec, attrs_decl, typequals, typespecs, funspecs) = partitionDeclSpecs declspecs
     analyseTyDeclr _ = astError node "Non-abstract declarator in type declaration"
 
 
@@ -403,7 +406,7 @@ tTypeQuals = foldrM go (noTypeQuals,[]) where
     go (CVolatQual _) (tq,attrs) = return$ (tq { volatile = True },attrs)
     go (CRestrQual _) (tq,attrs) = return$ (tq { restrict = True },attrs)
     go (CAttrQual attr) (tq,attrs) = liftM (\attr' -> (tq,attr':attrs)) (tAttr attr)
-    go (CInlineQual node) (_tq,_attrs) = astError node "unexpected inline qualifier"
+    go (CFunSpecQual fs) (_tq,_attrs) = astError (nodeInfo fs) "unexpected function specifier for type"
 
 
 -- * analysis
