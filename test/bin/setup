@@ -4,12 +4,12 @@
 # Environment:
 #   CTEST_BINDIR ... the directory containing the test executables (including this file)
 #   CTEST_RESULTDIR ... the directory to write report files and logs
-# Calls: 
+# Calls:
 
 # Setup
 function die() {
 	echo $1 1>&2
-	exit 1	
+	exit 1
 }
 
 if [ ! -d $CTEST_BINDIR ];    then die "Missing environment variable \$CTEST_BINDIR"; fi

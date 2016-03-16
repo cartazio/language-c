@@ -5,7 +5,7 @@
 # Environment:
 #   CTEST_BINDIR ... the directory containing the test executables (including this file)
 #   CTEST_RESULTDIR ... the directory to write report files and logs
-# Calls: 
+# Calls:
 #   die()
 if [ ! -e $CTEST_BINDIR/setup ]; then echo "Missing environment variable \$CTEST_BINDIR or missing file $CTEST_BINDIR/setup"; exit 1; fi
 if [ -z $TEST_SETUP ]; then source $CTEST_BINDIR/setup; fi
@@ -29,7 +29,7 @@ fi
 # Ensure the tmp directory is present
 if [ ! -d $L_TEST_TMPDIR ]; then
 	die "No a valid directory : $L_TEST_TMPDIR";
-	
+
 # If there is a parse.log file in the temporary directory, remove its contents
 elif [ -e "$L_TEST_TMPDIR"/parse.log ]; then
     (cd "$L_TEST_TMPDIR" && ls  | xargs rm)
