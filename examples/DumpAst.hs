@@ -1,6 +1,3 @@
-import Language.Haskell.Pretty (prettyPrint)
-import Language.Haskell.Parser (ParseResult(ParseOk, ParseFailed), parseModule)
-
 import System.Environment (getArgs)
 import System.Exit (exitWith, ExitCode(ExitFailure))
 import System.IO (hPutStrLn, stderr)
