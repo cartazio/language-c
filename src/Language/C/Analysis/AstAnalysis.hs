@@ -243,6 +243,7 @@ extVarDecl (VarDeclInfo var_name fun_spec storage_spec attrs typ node_info) init
             return (Static InternalLinkage False, False)
        -- tentative if there is no initializer, external
        globalStorage NoStorageSpec = return $ (Static ExternalLinkage False, True)
+       globalStorage ThreadSpec    = return $ (Static ExternalLinkage True, True)
        -- tentative if there is no initializer, internal
        globalStorage (StaticSpec thread_local) = return $ (Static InternalLinkage thread_local, True)
        globalStorage (ExternSpec thread_local) =
@@ -270,6 +271,7 @@ localVarDecl (VarDeclInfo var_name fun_attrs storage_spec attrs typ node_info) i
     where
     ident = identOfVarName var_name
     localStorage NoStorageSpec = return $ (Auto False,True)
+    localStorage ThreadSpec    = return $ (Auto True,True)
     localStorage RegSpec = return $ (Auto True,True)
     -- static no linkage
     localStorage (StaticSpec thread_local) =
