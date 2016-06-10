@@ -458,6 +458,8 @@ data CTypeQualifier a
   | CRestrQual a
   | CFunSpecQual (CFunctionSpecifier a)
   | CAttrQual  (CAttribute a)
+  | CNullableQual a
+  | CNonnullQual a
     deriving (Show, Data,Typeable {-! ,CNode ,Functor ,Annotated !-})
 
 -- | C function specifiers (C99 6.7.4)
@@ -1069,6 +1071,9 @@ instance CNode t1 => CNode (CTypeQualifier t1) where
         nodeInfo (CRestrQual d) = nodeInfo d
         nodeInfo (CFunSpecQual d) = nodeInfo d
         nodeInfo (CAttrQual d) = nodeInfo d
+        nodeInfo (CNullableQual d) = nodeInfo d
+        nodeInfo (CNonnullQual d) = nodeInfo d
+
 instance CNode t1 => Pos (CTypeQualifier t1) where
         posOf x = posOf (nodeInfo x)
 
@@ -1078,6 +1083,8 @@ instance Functor CTypeQualifier where
         fmap _f (CRestrQual a1) = CRestrQual (_f a1)
         fmap _f (CFunSpecQual a1) = CFunSpecQual (fmap _f a1)
         fmap _f (CAttrQual a1) = CAttrQual (fmap _f a1)
+        fmap _f (CNullableQual a1) = CNullableQual (_f a1)
+        fmap _f (CNonnullQual a1) = CNonnullQual (_f a1)
 
 instance Annotated CTypeQualifier where
         annotation (CConstQual n) = n
@@ -1085,11 +1092,15 @@ instance Annotated CTypeQualifier where
         annotation (CRestrQual n) = n
         annotation (CFunSpecQual n) = annotation n
         annotation (CAttrQual n) = annotation n
+        annotation (CNullableQual n) = n
+        annotation (CNonnullQual n) = n
         amap f (CConstQual a_1) = CConstQual (f a_1)
         amap f (CVolatQual a_1) = CVolatQual (f a_1)
         amap f (CRestrQual a_1) = CRestrQual (f a_1)
         amap f (CFunSpecQual n) = CFunSpecQual (amap f n)
         amap f (CAttrQual n) = CAttrQual (amap f n)
+        amap f (CNullableQual a_1) = CNullableQual (f a_1)
+        amap f (CNonnullQual a_1) = CNonnullQual (f a_1)
 
 instance CNode t1 => CNode (CFunctionSpecifier t1) where
         nodeInfo (CInlineQual d) = nodeInfo d

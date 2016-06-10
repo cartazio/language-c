@@ -207,6 +207,8 @@ int		{ CTokInt	_ }
 long		{ CTokLong	_ }
 "__label__"	{ CTokLabel	_ }
 "_Noreturn"     { CTokNoreturn  _ }
+"_Nullable"     { CTokNullable  _ }
+"_Nonnull"      { CTokNonnull   _ }
 register	{ CTokRegister	_ }
 restrict	{ CTokRestrict	_ }
 return		{ CTokReturn	_ }
@@ -553,7 +555,7 @@ sides doesn't matter.
 ---------------------------------------------------------------------------------------------------------------
 attr                       :-   __attribute__((..))
 storage_class              :-   typedef | extern | static | auto | register | __thread
-type_qualifier             :-   const | volatile | restrict | inline | _Noreturn
+type_qualifier             :-   const | volatile | restrict | inline | _Noreturn | _Nullable
 type_qualifier_list        :-   type_qualifier+
 
 declaration_qualifier      :-   storage_class | type_qualifier
@@ -1195,6 +1197,8 @@ type_qualifier
   | restrict		{% withNodeInfo $1 $ CRestrQual }
   | inline		{% withNodeInfo $1 $ CFunSpecQual . CInlineQual }
   | "_Noreturn"         {% withNodeInfo $1 $ CFunSpecQual . CNoreturnQual }
+  | "_Nullable"         {% withNodeInfo $1 $ CNullableQual }
+  | "_Nonnull"          {% withNodeInfo $1 $ CNonnullQual }
 
 -- a list containing at least one type_qualifier (const, volatile, restrict, inline, _Noreturn)
 --    and additionally CAttrs

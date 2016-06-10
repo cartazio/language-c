@@ -5,6 +5,8 @@ default, do, double,
 else, enum, extern,
 float, for, goto,
 if, inline @__, int, int128 __int128, long, noreturn _Noreturn,
+nullable _Nullable __nullable,
+nonnull _Nonnull __nonnull,
 register, restrict @__, return
 short, signed @__, sizeof, static, struct, switch,
 typedef, typeof @__, thread __thread,
