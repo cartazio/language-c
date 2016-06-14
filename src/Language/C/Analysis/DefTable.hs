@@ -38,7 +38,6 @@ import Language.C.Analysis.NameSpaceMap
 import Language.C.Analysis.SemRep
 
 import Control.Applicative ((<|>))
-import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.IntMap (IntMap, union)
 import qualified Data.IntMap as IntMap
@@ -261,7 +260,7 @@ defineScopedIdentWhen override_def ident def deftbl
                               = (old_decls, maybe NewDecl KeepDef old_decl_opt)
     new_decls = fst (defLocal old_decls ident new_def)
     doOverride (Left _) = False
-    doOverride (Right old_def) = (override_def old_def)
+    doOverride (Right old_def) = override_def old_def
     redeclStatus' overriden_decl = defRedeclStatusLocal compatIdentEntry ident new_def overriden_decl old_decls
 
 -- | declare a tag (fwd decl in case the struct name isn't defined yet)
@@ -280,8 +279,8 @@ defineTag sueref def deftbl =
     (decls',olddecl) = defLocal (tagDecls deftbl) sueref (Right def)
     redeclStatus =
       case olddecl of
-        Just fwd_decl@(Left decl) | tagKind fwd_decl == tagKind (Right def) -> NewDecl -- should be NewDef
-                                  | otherwise -> KindMismatch fwd_decl
+        Just fwd_decl@(Left _) | tagKind fwd_decl == tagKind (Right def) -> NewDecl -- should be NewDef
+                               | otherwise -> KindMismatch fwd_decl
         _ -> defRedeclStatusLocal compatTagEntry sueref (Right def) olddecl (tagDecls deftbl)
 
 -- | define a label

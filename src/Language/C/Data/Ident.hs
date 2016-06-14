@@ -26,7 +26,7 @@ where
 import Data.Char
 import Language.C.Data.Position
 import Language.C.Data.Node
-import Language.C.Data.Name   (Name,nameId)
+import Language.C.Data.Name   (Name)
 import Data.Generics
 
 -- | References uniquely determining a struct, union or enum type.

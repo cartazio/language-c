@@ -28,8 +28,6 @@ where
 import Data.Bits
 import Data.Char
 import Numeric (showOct, showHex, readHex, readOct, readDec)
-import Language.C.Data.Node
-import Language.C.Data.Position
 import Data.Generics
 
 -- | C char constants (abstract)
@@ -103,7 +101,7 @@ data CInteger = CInteger
                  !(Flags CIntFlag)  -- integer flags
                  deriving (Eq,Ord,Data,Typeable)
 instance Show CInteger where
-    showsPrec _ (CInteger i repr flags) = showInt i . showString (concatMap showIFlag [FlagUnsigned .. ]) where
+    showsPrec _ (CInteger ig repr flags) = showInt ig . showString (concatMap showIFlag [FlagUnsigned .. ]) where
         showIFlag f = if testFlag f flags then show f else []
         showInt i = case repr of DecRepr -> shows i
                                  OctalRepr -> showString "0" . showOct i

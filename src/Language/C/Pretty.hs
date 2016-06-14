@@ -18,7 +18,7 @@ module Language.C.Pretty (
     -- * Testing
     prettyUsingInclude
 ) where
-import Data.List (partition,nub,isSuffixOf)
+import Data.List (isSuffixOf)
 import qualified Data.Set as Set
 import Text.PrettyPrint.HughesPJ
 import Debug.Trace {- for warnings -}
@@ -81,7 +81,7 @@ prettyUsingInclude (CTranslUnit edecls _) =
     $$
   (vcat $ map (either includeHeader pretty) mappedDecls)
   where
-    (headerFiles,mappedDecls) = foldr addDecl (Set.empty,[]) $ map tagIncludedDecls edecls
+    (headerFiles,mappedDecls) = foldr (addDecl . tagIncludedDecls) (Set.empty,[]) edecls
     tagIncludedDecls edecl | maybe False isHeaderFile (fileOfNode edecl) = Left ((posFile . posOf) edecl)
                            | otherwise = Right edecl
     addDecl decl@(Left headerRef) (headerSet, ds)
@@ -254,6 +254,8 @@ instance Pretty CTypeQual where
     pretty (CRestrQual _) = text "__restrict"
     pretty (CFunSpecQual fspec) = pretty fspec
     pretty (CAttrQual a)  = attrlistP [a]
+    pretty (CNullableQual _) = text "_Nullable"
+    pretty (CNonnullQual _) = text "_Nonnull"
 
 instance Pretty CFunSpec where
     pretty (CInlineQual _) = text "inline"

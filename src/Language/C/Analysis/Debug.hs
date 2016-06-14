@@ -25,7 +25,6 @@ import Language.C.Analysis.NameSpaceMap
 
 import Language.C.Data
 import Language.C.Pretty
-import Language.C.Syntax
 
 import Text.PrettyPrint.HughesPJ
 import Data.Map (Map) ; import qualified Data.Map as Map
@@ -126,7 +125,7 @@ instance Pretty ParamDecl where
              text "::" <+> pretty ty
 instance Pretty DeclAttrs where
     pretty (DeclAttrs fun_attrs storage attrs) =
-        hsep $ [ pretty fun_attrs, pretty storage, pretty attrs]
+        hsep [ pretty fun_attrs, pretty storage, pretty attrs]
 
 instance Pretty Type where
   pretty ty = pretty (exportTypeDecl ty)
@@ -136,7 +135,7 @@ instance Pretty TypeQuals where
                                     | otherwise      = empty
 
 instance Pretty CompType where
-    pretty (CompType sue_ref tag members attrs node) =
+    pretty (CompType sue_ref tag members attrs _node) =
         (text.show) tag <+> pretty sue_ref <+>
         braces (terminateSemi members) <+>
         pretty attrs
@@ -151,7 +150,7 @@ instance Pretty EnumType where
     pretty (EnumType sue_ref enumerators attrs _) =
       text "enum" <+> pretty sue_ref <+> braces (terminateSemi_ $ map prettyEnr enumerators) <+> pretty attrs
       where
-      prettyEnr (Enumerator ident expr enumty _) = pretty ident <+> text " = " <+> pretty expr
+      prettyEnr (Enumerator ident expr _ _) = pretty ident <+> text " = " <+> pretty expr
 
 instance Pretty Enumerator where
     pretty (Enumerator ident expr enumty _) = text "<" <> text "econst" <+> pretty (sueRef enumty) <> text ">" <+>
