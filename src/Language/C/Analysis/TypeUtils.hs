@@ -50,7 +50,7 @@ simplePtr t = PtrType t noTypeQuals []
 
 -- | A pointer with the @const@ qualifier.
 constPtr :: Type -> Type
-constPtr t = PtrType t (TypeQuals True False False False False) []
+constPtr t = PtrType t (noTypeQuals { constant = True }) []
 
 -- | The type returned by sizeof (size_t). For now, this is just @int@.
 size_tType :: Type
@@ -87,8 +87,8 @@ constCharPtr = constPtr (integral TyChar)
 -- | The type of a constant string.
 stringType :: Type
 stringType  = ArrayType
-              (DirectType (TyIntegral TyChar) 
-                          (TypeQuals True False False False False)
+              (DirectType (TyIntegral TyChar)
+                          (noTypeQuals { constant = True })
                           noAttributes)
               (UnknownArraySize False)
               noTypeQuals

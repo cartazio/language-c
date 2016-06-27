@@ -257,6 +257,7 @@ readCOctal s@('0':r) =
     case r of
         (c:_) | isDigit c -> readCInteger OctalRepr r
         _                 -> readCInteger DecRepr s
+readCOctal _ = error "ReadOctal: string does not start with `0'"
 
 -- We use the odd looking list of string patterns here rather than normal
 -- string literals since GHC converts the latter into a sequence of string
@@ -267,16 +268,20 @@ readCOctal s@('0':r) =
 -- To make this a little more maintainable, we autogenerate it from this list,
 -- using the script GenerateKeywords.hs (in /scripts)
 {-
-alignof @__, asm @__, auto
+alignas _Alignas, alignof _Alignof __alignof alignof __alignof__, asm @__, atomic _Atomic, auto
 break, bool _Bool,
 case, char, const @__, continue, complex _Complex __complex__
 default, do, double,
 else, enum, extern,
 float, for, goto,
-if, inline @__, int, __int128, long, noreturn _Noreturn, _Nullable __nullable,
+if, inline @__, int, __int128, long, noreturn _Noreturn,
+float, for,
+generic _Generic, goto,
+if, inline @__, int, int128 __int128, long,
+noreturn _Noreturn,  _Nullable __nullable, _Nonnull __nonnull,
 register, restrict @__, return
-short, signed @__, sizeof, static, struct, switch,
-typedef, typeof @__, thread __thread,
+short, signed @__, sizeof, static, staticAssert _Static_assert, struct, switch,
+typedef, typeof @__, thread __thread _Thread_local
 union, unsigned, void, volatile @__,
 while,
 label __label__
@@ -288,12 +293,18 @@ label __label__
 (CTokGnuC GnuCOffsetof) __builtin_offsetof
 (CTokGnuC GnuCTyCompat) __builtin_types_compatible_p
 -}
--- Tokens: __alignof alignof __alignof__ __asm asm __asm__ auto break _Bool case char __const const __const__ continue _Complex __complex__ default do double else enum extern float for goto if __inline inline __inline__ int __int128 long _Noreturn _Nullable __nullable _Nonnull __nonnull register __restrict restrict __restrict__ return short __signed signed __signed__ sizeof static struct switch typedef __typeof typeof __typeof__ __thread union unsigned void __volatile volatile __volatile__ while __label__ __attribute __attribute__ __extension__ __real __real__ __imag __imag__ __builtin_va_arg __builtin_offsetof __builtin_types_compatible_p
+-- Tokens: _Alignas _Alignof __alignof alignof __alignof__ __asm asm __asm__ _Atomic auto break _Bool case char __const const __const__ continue _Complex __complex__ default do double else enum extern float for _Generic goto if __inline inline __inline__ int __int128 long _Noreturn  _Nullable __nullable _Nonnull __nonnull register __restrict restrict __restrict__ return short __signed signed __signed__ sizeof static _Static_assert struct switch typedef __typeof typeof __typeof__ __thread _Thread_local union unsigned void __volatile volatile __volatile__ while __label__ __attribute __attribute__ __extension__ __real __real__ __imag __imag__ __builtin_va_arg __builtin_offsetof __builtin_types_compatible_p
+idkwtok ('_' : 'A' : 'l' : 'i' : 'g' : 'n' : 'a' : 's' : []) = tok 8 CTokAlignas
+idkwtok ('_' : 'A' : 'l' : 'i' : 'g' : 'n' : 'o' : 'f' : []) = tok 8 CTokAlignof
+idkwtok ('_' : 'A' : 't' : 'o' : 'm' : 'i' : 'c' : []) = tok 7 CTokAtomic
 idkwtok ('_' : 'B' : 'o' : 'o' : 'l' : []) = tok 5 CTokBool
 idkwtok ('_' : 'C' : 'o' : 'm' : 'p' : 'l' : 'e' : 'x' : []) = tok 8 CTokComplex
 idkwtok ('_' : 'N' : 'o' : 'n' : 'n' : 'u' : 'l' : 'l' : []) = tok 8 CTokNonnull
+idkwtok ('_' : 'G' : 'e' : 'n' : 'e' : 'r' : 'i' : 'c' : []) = tok 8 CTokGeneric
 idkwtok ('_' : 'N' : 'o' : 'r' : 'e' : 't' : 'u' : 'r' : 'n' : []) = tok 9 CTokNoreturn
 idkwtok ('_' : 'N' : 'u' : 'l' : 'l' : 'a' : 'b' : 'l' : 'e' : []) = tok 9 CTokNullable
+idkwtok ('_' : 'S' : 't' : 'a' : 't' : 'i' : 'c' : '_' : 'a' : 's' : 's' : 'e' : 'r' : 't' : []) = tok 14 CTokStaticAssert
+idkwtok ('_' : 'T' : 'h' : 'r' : 'e' : 'a' : 'd' : '_' : 'l' : 'o' : 'c' : 'a' : 'l' : []) = tok 13 CTokThread
 idkwtok ('_' : '_' : 'a' : 'l' : 'i' : 'g' : 'n' : 'o' : 'f' : []) = tok 9 CTokAlignof
 idkwtok ('a' : 'l' : 'i' : 'g' : 'n' : 'o' : 'f' : []) = tok 7 CTokAlignof
 idkwtok ('_' : '_' : 'a' : 'l' : 'i' : 'g' : 'n' : 'o' : 'f' : '_' : '_' : []) = tok 11 CTokAlignof
@@ -377,8 +388,8 @@ ignoreAttribute :: P ()
 ignoreAttribute = skipTokens (0::Int)
   where skipTokens :: Int -> P ()
         skipTokens n = do
-          tok <- lexToken' False
-          case tok of
+          ntok <- lexToken' False
+          case ntok of
             CTokRParen _ | n == 1    -> return ()
                          | otherwise -> skipTokens (n-1)
             CTokLParen _             -> skipTokens (n+1)
@@ -414,7 +425,7 @@ unescapeMultiChars _ = error "Unexpected end of multi-char constant"
 {-# INLINE token_ #-}
 -- token that ignores the string
 token_ :: Int -> (PosLength -> CToken) -> Position -> Int -> InputStream -> P CToken
-token_ len tok pos _ _ = return (tok (pos,len))
+token_ len mkTok pos _ _ = return (mkTok (pos,len))
 
 {-# INLINE token_fail #-}
 -- error token
@@ -427,15 +438,15 @@ token_fail errmsg pos _ _ =   failP pos [ "Lexical Error !", errmsg ]
 -- token that uses the string
 token :: (PosLength -> a -> CToken) -> (String -> a)
       -> Position -> Int -> InputStream -> P CToken
-token tok read pos len str = return (tok (pos,len) (read $ takeChars len str))
+token mkTok fromStr pos len str = return (mkTok (pos,len) (fromStr $ takeChars len str))
 
 {-# INLINE token_plus #-}
 -- token that may fail
 token_plus :: (PosLength -> a -> CToken) -> (String -> Either String a)
       -> Position -> Int -> InputStream -> P CToken
-token_plus tok read pos len str =
-  case read (takeChars len str) of Left err -> failP pos [ "Lexical error ! ", err ]
-                                   Right ok -> return $! tok (pos,len) ok
+token_plus mkTok fromStr pos len str =
+  case fromStr (takeChars len str) of Left err -> failP pos [ "Lexical error ! ", err ]
+                                      Right ok -> return $! mkTok (pos,len) ok
 
 -- -----------------------------------------------------------------------------
 -- The input type
@@ -469,17 +480,17 @@ alexMove pos _    = incPos pos 1
 lexicalError :: P a
 lexicalError = do
   pos <- getPos
-  (c,cs) <- liftM takeChar getInput
+  (c,_) <- liftM takeChar getInput
   failP pos
         ["Lexical error !",
          "The character " ++ show c ++ " does not fit here."]
 
 parseError :: P a
 parseError = do
-  tok <- getLastToken
-  failP (posOf tok)
+  lastTok <- getLastToken
+  failP (posOf lastTok)
         ["Syntax error !",
-         "The symbol `" ++ show tok ++ "' does not fit here."]
+         "The symbol `" ++ show lastTok ++ "' does not fit here."]
 
 -- there is a problem with ignored tokens here (that aren't skipped)
 -- consider
@@ -504,20 +515,20 @@ lexToken' modifyCache = do
     AlexEOF -> do
         handleEofToken
         return CTokEof
-    AlexError inp' -> lexicalError
-    AlexSkip  (pos', inp') len -> do
+    AlexError _inp -> lexicalError
+    AlexSkip  (pos', inp') _len -> do
         setPos pos'
         setInput inp'
         lexToken' modifyCache
     AlexToken (pos', inp') len action -> do
         setPos pos'
         setInput inp'
-        tok <- action pos len inp
-        when modifyCache $ setLastToken tok
-        return tok
+        nextTok <- action pos len inp
+        when modifyCache $ setLastToken nextTok
+        return nextTok
 
 lexC :: (CToken -> P a) -> P a
 lexC cont = do
-  tok <- lexToken
-  cont tok
+  nextTok <- lexToken
+  cont nextTok
 }

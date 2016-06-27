@@ -1,8 +1,6 @@
 # Inplace Testing
 #
 # TODO: This is a QnD Makefile.
-# It is especially annoying that we have to rebuild the executables every time
-# HAPPY_OPTS=-scg
 HAPPY_OPTS=-sacg
 ifndef HC
 	HC=ghc
@@ -32,28 +30,20 @@ profile : test_drivers c_test
 test_drivers: parse round_trip equiv report_fatal
 
 # GHC bug: Main sometimes isn't recompiled (6.8.2, 6.8.3, should get fixed in 6.10)
-# Therefore we add rm build/Main.o to the end of make targets
 c_test: autogen
 	$(HC) $(OPT) -o bin/CTest$(SUFFIX) $(INCLUDE) --make src/CTest.hs
-	rm $(BUILD_DIR)/Main.o
 parse: autogen
 	$(HC) $(OPT) -o bin/CParse$(SUFFIX) $(INCLUDE) --make src/CParse.hs
-	rm $(BUILD_DIR)/Main.o
 round_trip: autogen
 	$(HC) $(OPT) -o bin/CRoundTrip$(SUFFIX) $(INCLUDE) --make src/CRoundTrip.hs
-	rm $(BUILD_DIR)/Main.o
 equiv: autogen
 	$(HC) $(OPT) -o bin/CEquiv$(SUFFIX) $(INCLUDE) --make src/CEquiv.hs
-	rm $(BUILD_DIR)/Main.o
 render_tests: autogen
 	$(HC) $(OPT) -o bin/RenderTests$(SUFFIX) $(INCLUDE) --make src/RenderTests.hs
-	rm $(BUILD_DIR)/Main.o
 report_fatal: autogen clean
 	$(HC) $(OPT) -o bin/ReportFatal$(SUFFIX) $(INCLUDE) --make src/ReportFatal.hs
-	rm $(BUILD_DIR)/Main.o
 check_args: autogen
 	$(HC) $(OPT) -o bin/CheckGccArgs$(SUFFIX) $(INCLUDE) --make src/CheckGccArgs.hs
-	rm build/Main.o
 clean:
 	rm -rf build/*
 

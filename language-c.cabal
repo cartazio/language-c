@@ -32,11 +32,14 @@ Flag useByteStrings
     Default: True
 Flag separateSYB
   description: Data.Generics available in separate package.
-
+Flag allWarnings
+    Description: Turn on all warnings for building (development)
+    Default: False
 Library
     Extensions: CPP, DeriveDataTypeable, PatternGuards, BangPatterns, ExistentialQuantification, GeneralizedNewtypeDeriving, ScopedTypeVariables
     Build-Depends:  filepath
-
+    if flag(allWarnings)
+        ghc-options:     -Wall
     if flag(splitBase)
         Build-Depends: base >= 3 && < 5, process, directory, array, containers, pretty
 

@@ -29,7 +29,6 @@ module Language.C.Data.Error (
 )
 where
 import Data.Typeable
-import Data.Generics
 import Language.C.Data.Node
 import Language.C.Data.Position
 

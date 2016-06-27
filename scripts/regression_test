@@ -3,27 +3,45 @@
 # People don't like code that doesn't compile
 
 # Configuration
-TESTDIR=tmp/language_c
-DEFAULT_BROWSER=firefox
+if [ -z "${TMPDIR}" ] ; then
+    TMPDIR=/tmp
+fi
+if [ -z "${TESTDIR}" ] ; then
+    TESTDIR=tmp/language_c
+fi
+if [ -z "${DEFAULT_BROWSER}" ] ; then
+    DEFAULT_BROWSER=firefox
+fi
 
+# messages
 function die() {
     echo "*** Regression test failed: $1 ***" 1>&2; exit 1
 }
+function warning() {
+    echo "[WARNING] $1" 1>&2
+}
 
-if [ ! -d "$TESTDIR" ] ; then
-    die "'$TESTDIR' directory does not exist " \
-        "(needs to be a checkout of your local HEAD)"
-fi
-
+# preparation
 if [ ! -d "$TMPDIR" ] ; then
     die "TMPDIR ('$TMPDIR') directory does not exist " \
         "(absolute path to a directory for temporary files)"
 fi
 
+if [ ! -d "$TESTDIR" ] ; then
+    warning "'$TESTDIR' directory does not exist " \
+            "(needs to be a checkout of your local HEAD)"
+    savedir="$(pwd)"
+    mkdir -p $(dirname "${TESTDIR}")
+    pushd $(dirname "${TESTDIR}")
+    darcs clone "${savedir}" $(basename "${TESTDIR}")
+    popd
+fi
 
+# update
 cd "${TESTDIR}"
 darcs pull || die "darcs pull (from local HEAD) failed"
 
+# regression test
 echo "Building via cabal"
 cabal configure || die "cabal configure failed"
 cabal build || die "cabal build failed"

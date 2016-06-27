@@ -103,9 +103,9 @@ data CInteger = CInteger
 instance Show CInteger where
     showsPrec _ (CInteger ig repr flags) = showInt ig . showString (concatMap showIFlag [FlagUnsigned .. ]) where
         showIFlag f = if testFlag f flags then show f else []
-        showInt i = case repr of DecRepr -> shows i
-                                 OctalRepr -> showString "0" . showOct i
-                                 HexRepr -> showString "0x" . showHex i
+        showInt num = case repr of DecRepr -> shows num
+                                   OctalRepr -> showString "0" . showOct num
+                                   HexRepr -> showString "0x" . showHex num
 
 -- To be used in the lexer
 -- Note that the flag lexer won't scale

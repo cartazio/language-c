@@ -64,7 +64,6 @@ import qualified Language.C.Analysis.DefTable as ST
 
 import Data.IntMap (insert)
 import Data.Maybe
-import Control.Applicative (Applicative(..))
 import Control.Monad (liftM, ap)
 import Prelude hiding (lookup)
 
@@ -183,19 +182,19 @@ checkVarRedef def redecl =
         _ -> return ()
     where
     redefVarErr old_def kind = redefErr (declIdent def) LevelError def old_def kind
-    linkageErr defn old_def =
-        case (declLinkage defn, declLinkage old_def) of
-            (NoLinkage, _) -> redefErr (declIdent defn) LevelError  def old_def NoLinkageOld
-            _              -> redefErr (declIdent defn) LevelError  def old_def DisagreeLinkage
+    linkageErr new_def old_def =
+        case (declLinkage new_def, declLinkage old_def) of
+            (NoLinkage, _) -> redefErr (declIdent new_def) LevelError new_def old_def NoLinkageOld
+            _              -> redefErr (declIdent new_def) LevelError new_def old_def DisagreeLinkage
 
     new_ty = declType def
     canBeOverwritten (Declaration _) = True
     canBeOverwritten (ObjectDef od)  = isTentative od
     canBeOverwritten _               = False
-    agreeOnLinkage defn old_def
+    agreeOnLinkage new_def old_def
         | declStorage old_def == FunLinkage InternalLinkage = True
-        | not (hasLinkage $ declStorage defn) || not (hasLinkage $ declStorage old_def) = False
-        | (declLinkage defn) /= (declLinkage old_def) = False
+        | not (hasLinkage $ declStorage new_def) || not (hasLinkage $ declStorage old_def) = False
+        | (declLinkage new_def) /= (declLinkage old_def) = False
         | otherwise = True
 
 -- | handle variable declarations (external object declarations and function prototypes)
@@ -354,7 +353,7 @@ handleTravError a = liftM Just a `catchTravError` (\e -> recordError e >> return
 
 -- | check wheter non-recoverable errors occurred
 hadHardErrors :: [CError] -> Bool
-hadHardErrors = not . any isHardError
+hadHardErrors = any isHardError
 
 -- | raise an error caused by a malformed AST
 astError :: (MonadCError m) => NodeInfo -> String -> m a

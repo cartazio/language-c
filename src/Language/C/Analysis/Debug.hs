@@ -139,6 +139,7 @@ instance Pretty CompType where
         (text.show) tag <+> pretty sue_ref <+>
         braces (terminateSemi members) <+>
         pretty attrs
+
 instance Pretty MemberDecl where
     pretty (MemberDecl (VarDecl name declattrs ty) bitfield _) =
         pretty declattrs <+> pretty name <+> text "::" <+> pretty ty <+>
@@ -150,7 +151,7 @@ instance Pretty EnumType where
     pretty (EnumType sue_ref enumerators attrs _) =
       text "enum" <+> pretty sue_ref <+> braces (terminateSemi_ $ map prettyEnr enumerators) <+> pretty attrs
       where
-      prettyEnr (Enumerator ident expr _ _) = pretty ident <+> text " = " <+> pretty expr
+      prettyEnr (Enumerator ident expr _enumty _) = pretty ident <+> text " = " <+> pretty expr
 
 instance Pretty Enumerator where
     pretty (Enumerator ident expr enumty _) = text "<" <> text "econst" <+> pretty (sueRef enumty) <> text ">" <+>
@@ -159,7 +160,7 @@ instance Pretty Enumerator where
 instance Pretty FunctionAttrs where
     pretty fattrs = hsep [pIf isInline "inline", pIf isNoreturn "_Noreturn"]
       where
-        pIf pred txt = if pred fattrs then text txt else empty
+        pIf isMatch txt = if isMatch fattrs then text txt else empty
 
 instance Pretty Storage where
     pretty NoStorage = empty

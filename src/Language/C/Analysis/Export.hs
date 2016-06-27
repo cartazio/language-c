@@ -188,7 +188,7 @@ exportParamDecl paramdecl =
 
 exportDeclAttrs :: DeclAttrs -> [CDeclSpec]
 exportDeclAttrs (DeclAttrs fun_attrs storage attrs) =
-       map (CTypeQual . CFunSpecQual) (exportFunAttrs fun_attrs)
+       map (CFunSpec) (exportFunAttrs fun_attrs)
     ++ map (CStorageSpec) (exportStorage storage)
     ++ map (CTypeQual . CAttrQual) (exportAttrs attrs)
 

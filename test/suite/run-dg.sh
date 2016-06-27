@@ -1,5 +1,8 @@
 #!/bin/bash
 for t in gcc-dg-* ; do
+    if [ ! -d "${t}" ] ; then
+        continue
+    fi
     echo "-----------------------"
     echo "Running gcc dg suite $t"
     echo "-----------------------"
