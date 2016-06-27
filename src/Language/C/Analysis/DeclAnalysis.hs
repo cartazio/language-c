@@ -37,7 +37,7 @@ import Language.C.Analysis.TravMonad
 
 import Data.Foldable as F (foldrM)
 import Control.Monad (liftM,when,ap,unless)
-import Data.List (intersperse, intercalate, mapAccumL)
+import Data.List (intercalate, mapAccumL)
 import qualified Data.Map as Map
 import Text.PrettyPrint.HughesPJ
 
@@ -85,7 +85,7 @@ tMemberDecls :: (MonadTrav m) => CDecl -> m [MemberDecl]
 tMemberDecls (CStaticAssert _ _ node) =
   astError node "expected struct or union member, found static assertion"
 tMemberDecls (CDecl declspecs [] node) =
-  do let (_storage_specs, _attrs, typequals, typespecs, funspecs, alignspecs) =
+  do let (_storage_specs, _attrs, typequals, typespecs, funspecs, _alignspecs) =
            partitionDeclSpecs declspecs
      unless (null funspecs) $ astError node "member declaration with function specifier"
      canonTySpecs <- canonicalTypeSpec typespecs
@@ -109,7 +109,7 @@ tMemberDecls (CDecl declspecs declrs node) = mapM (uncurry tMemberDecl) (zip (Tr
            return $ MemberDecl (VarDecl name (DeclAttrs noFunctionAttrs NoStorage attrs) ty)
                                bit_field_size_opt node
     tMemberDecl handle_sue_def (Nothing,Nothing,Just bit_field_size) =
-        do let (storage_specs, _attrs, typequals, typespecs, funspecs, alignspecs) = partitionDeclSpecs declspecs
+        do let (storage_specs, _attrs, typequals, typespecs, _funspecs, _alignspecs) = partitionDeclSpecs declspecs
            -- TODO: funspecs/alignspecs not yet processed
            storage_spec  <- canonicalStorageSpec storage_specs
            -- TODO: storage_spec not used
@@ -138,7 +138,7 @@ analyseVarDecl' :: (MonadTrav m) =>
                   Bool -> [CDeclSpec] ->
                   CDeclr -> [CDecl] -> (Maybe CInit) -> m VarDeclInfo
 analyseVarDecl' handle_sue_def declspecs declr oldstyle init_opt =
-  do let (storage_specs, attrs, type_quals, type_specs, funspecs, alignspecs) =
+  do let (storage_specs, attrs, type_quals, type_specs, funspecs, _alignspecs) =
            partitionDeclSpecs declspecs
      canonTySpecs <- canonicalTypeSpec type_specs
      -- TODO: alignspecs not yet processed

@@ -109,7 +109,7 @@ analyseFunDef (CFunDef declspecs declr oldstyle_decls stmt node_info) = do
 --
 --   Note: static assertions are not analysed
 analyseDecl :: (MonadTrav m) => Bool -> CDecl -> m ()
-analyseDecl is_local decl@(CStaticAssert _expr _strlit _annot) = return ()
+analyseDecl _is_local (CStaticAssert _expr _strlit _annot) = return () -- TODO
 analyseDecl is_local decl@(CDecl declspecs declrs node)
     | null declrs =
         case typedef_spec of Just _  -> astError node "bad typedef declaration: missing declarator"
@@ -572,7 +572,7 @@ tExpr' ctx side (CGenericSelection expr list ni) = do
   ty_list <- mapM analyseAssoc list
   def_expr_ty <-
     case dropWhile (isJust . fst) ty_list of
-      [(Nothing,tExpr)] -> return $ Just tExpr
+      [(Nothing,tExpr')] -> return $ Just tExpr'
       [] -> return $ Nothing
       _ -> astError ni "more than one default clause in generic selection"
   case dropWhile (maybe True (not . typesMatch ty_sel) . fst) ty_list of
@@ -582,10 +582,10 @@ tExpr' ctx side (CGenericSelection expr list ni) = do
       Nothing -> astError ni ("no clause matches for generic selection (not fully supported) - selector type is " ++ show (pretty ty_sel) ++
                               ", available types are " ++ show (map (pretty.fromJust.fst) (filter (isJust.fst) ty_list)))
   where
-    analyseAssoc (mdecl,expr) = do
+    analyseAssoc (mdecl,expr') = do
       tDecl <- mapM analyseTypeDecl mdecl
-      tExpr <- tExpr ctx side expr
-      return (tDecl, tExpr)
+      tExpr' <- tExpr ctx side expr'
+      return (tDecl, tExpr')
     typesMatch (DirectType tn1 _ _) (DirectType tn2 _ _) = directTypesMatch tn1 tn2
     typesMatch _ _ = False -- not fully supported
     directTypesMatch TyVoid TyVoid = True
@@ -733,7 +733,7 @@ tDesignator t@(DirectType (TyComp _) _ _) (CMemberDesig m ni : ds) =
 tDesignator (DirectType (TyComp _) _ _) (d : _) =
   typeError (nodeInfo d) "array designator in compound initializer"
 tDesignator t [] = return t
-tDesignator t _ =
+tDesignator _t _ =
   error "unepxected type with designator"
 
 tInit :: MonadTrav m => Type -> CInit -> m Initializer
