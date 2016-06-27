@@ -28,8 +28,6 @@ where
 import Data.Bits
 import Data.Char
 import Numeric (showOct, showHex, readHex, readOct, readDec)
-import Language.C.Data.Node
-import Language.C.Data.Position
 import Data.Generics
 
 -- | C char constants (abstract)
@@ -105,9 +103,9 @@ data CInteger = CInteger
 instance Show CInteger where
     showsPrec _ (CInteger i repr flags) = showInt i . showString (concatMap showIFlag [FlagUnsigned .. ]) where
         showIFlag f = if testFlag f flags then show f else []
-        showInt i = case repr of DecRepr -> shows i
-                                 OctalRepr -> showString "0" . showOct i
-                                 HexRepr -> showString "0x" . showHex i
+        showInt num = case repr of DecRepr -> shows num
+                                   OctalRepr -> showString "0" . showOct num
+                                   HexRepr -> showString "0x" . showHex num
 
 -- To be used in the lexer
 -- Note that the flag lexer won't scale

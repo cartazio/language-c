@@ -56,8 +56,8 @@ lengthOfNode ni = len
     where
     len = case ni of NodeInfo firstPos lastTok _ -> computeLength firstPos lastTok
                      OnlyPos firstPos lastTok -> computeLength firstPos lastTok
-    computeLength pos (lastPos,len) | len < 0   = Nothing
-                                    | otherwise = Just (posOffset lastPos + len - posOffset pos)
+    computeLength pos (lastPos,lastTokLen) | lastTokLen < 0   = Nothing
+                                           | otherwise = Just (posOffset lastPos + lastTokLen - posOffset pos)
 
 -- | get the position and length of the last token
 getLastTokenPos :: NodeInfo -> PosLength

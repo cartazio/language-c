@@ -94,6 +94,7 @@ module Language.C.Parser.Parser (
 --
 --- TODO ----------------------------------------------------------------------
 --
+--  !* We ignore C11 _Atomic type annotations
 --  !* We ignore the C99 static keyword (see C99 6.7.5.3)
 --  !* We do not distinguish in the AST between incomplete array types and
 --      complete variable length arrays ([ '*' ] means the latter). (see C99 6.7.5.2)
@@ -182,6 +183,8 @@ import Language.C.Syntax
 '}'		{ CTokRBrace	_ }
 "..."		{ CTokEllipsis	_ }
 alignof		{ CTokAlignof	_ }
+alignas         { CTokAlignas   _ }
+"_Atomic"       { CTokAtomic    _ }
 asm		{ CTokAsm	_ }
 auto		{ CTokAuto	_ }
 break		{ CTokBreak	_ }
@@ -199,6 +202,7 @@ enum		{ CTokEnum	_ }
 extern		{ CTokExtern	_ }
 float		{ CTokFloat	_ }
 for		{ CTokFor	_ }
+"_Generic"      { CTokGeneric   _ }
 goto		{ CTokGoto	_ }
 if		{ CTokIf	_ }
 inline		{ CTokInline	_ }
@@ -214,6 +218,7 @@ short		{ CTokShort	_ }
 signed		{ CTokSigned	_ }
 sizeof		{ CTokSizeof	_ }
 static		{ CTokStatic	_ }
+"_Static_assert"{ CTokStaticAssert _ }
 struct		{ CTokStruct	_ }
 switch		{ CTokSwitch	_ }
 typedef		{ CTokTypedef	_ }
@@ -257,7 +262,6 @@ translation_unit
 -- * GNU extensions:
 --     allow empty translation_unit
 --     allow redundant ';'
---
 ext_decl_list :: { Reversed [CExtDecl] }
 ext_decl_list
   : {- empty -}					        { empty }
@@ -268,13 +272,13 @@ ext_decl_list
 -- parse external C declaration (C99 6.9)
 --
 -- * GNU extensions:
---     allow extension keyword before external declaration
+--     allow extension keyword before external declaration (TODO: discarded)
 --     asm definitions
 external_declaration :: { CExtDecl }
 external_declaration
-  : function_definition		              { CFDefExt $1 }
+  : function_definition		                  { CFDefExt $1 }
   | declaration			                  { CDeclExt $1 }
-  | "__extension__" external_declaration  { $2 }
+  | "__extension__" external_declaration          { $2 }
   | asm '(' string_literal ')' ';'		  {% withNodeInfo $1 $ CAsmExt $3 }
 
 
@@ -433,7 +437,7 @@ nested_function_definition
 
 label_declarations :: { Reversed [Ident] }
 label_declarations
-  : "__label__" identifier_list ';'			{ $2  } --TODO
+  : "__label__" identifier_list ';'			{ $2  }
   | label_declarations "__label__" identifier_list ';'	{ $1 `rappendr` $3 }
 
 
@@ -545,18 +549,20 @@ asm_clobbers
 ---------------------------------------------------------------------------------------------------------------
 
 Declarations are the most complicated part of the grammar, and shall be summarized here.
-To allow a lightweight notation, we will use the modifier <permute> to indicate that the order of the immidieate right-hand
-sides doesn't matter.
+To allow a lightweight notation, we will use the modifier <permute> to indicate that the order of the immidieate right-hand sides doesn't matter.
  - <permute> a* b+ c   === any sequence of a's, b's and c's, which contains exactly 1 'c' and at least one 'b'
 
 -- storage class and type qualifier
 ---------------------------------------------------------------------------------------------------------------
 attr                       :-   __attribute__((..))
-storage_class              :-   typedef | extern | static | auto | register | __thread
-type_qualifier             :-   const | volatile | restrict | inline | _Noreturn
+storage_class              :-   typedef | extern | static | auto | register | _Thread_local
+function_specifier         :-   inline | _Noreturn
+alignment_specifier        :-   _Alignas (type_name) | _Alignas (constant_expr)
+
+type_qualifier             :-   const | volatile | restrict | _Atomic
 type_qualifier_list        :-   type_qualifier+
 
-declaration_qualifier      :-   storage_class | type_qualifier
+declaration_qualifier      :-   storage_class | type_qualifier | function_specifier | alginment_specifier
 declaration_qualifier_list :-   <permute> type_qualifier* storage_class+
 
 qualifiers                 :-   declaration_qualifier_list | type_qualifier_list
@@ -595,7 +601,7 @@ declaration_list := default_declaring_list | declaring_list
 
 -- Declaration
 ---------------------------------------------------------------------------------------------------------------
-declaration = sue_declaration | declaration_list
+declaration = sue_declaration | declaration_list | _Static_assert(..)
 
 ---------------------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------------------
@@ -642,7 +648,10 @@ tbc.
 
 
 
--- parse C declaration (C99 6.7)
+-- parse C declaration (C11 6.7)
+--
+-- * new form in C11
+--     _Static_assert(expr,string_literal)
 declaration :: { CDecl }
 declaration
   : sue_declaration_specifier ';'
@@ -656,7 +665,8 @@ declaration
 
   | default_declaring_list ';'
   	{% case $1 of CDecl declspecs dies at -> withLength at (CDecl declspecs (List.reverse dies)) }
-
+  | "_Static_assert" '(' constant_expression ',' string_literal ')' ';'
+        {% withNodeInfo $1 $ CStaticAssert $3 $5 }
 
 declaration_list :: { Reversed [CDecl] }
 declaration_list
@@ -756,28 +766,28 @@ declaration_specifier
   | typedef_declaration_specifier	{ reverse $1 }	-- Typedef
 
 
--- A mixture of type qualifiers (const, volatile, restrict), function specifiers (inline,
--- _Noreturn) and storage class specifiers (extern, static, auto, register, __thread),
--- in any order, but containing at least one storage class specifier.
+-- A mixture of type qualifiers (const, volatile, restrict, _Atomic), function specifiers (inline,
+-- _Noreturn), alignment specifiers (_Alignas) and storage class specifiers (extern, static,
+-- auto, register, _Thread_local), in any order, but containing at least one storage class specifier.
 --
--- declaration_qualifier_list :- <permute> type_qualifier* storage_class+
+-- declaration_qualifier_list :- <permute> type_qualifier* alignment_specifier* function_specifier* storage_class+
 --
 -- GNU extensions
 --   * arbitrary interleaved __attribute__ annotations
 --
 declaration_qualifier_list :: { Reversed [CDeclSpec] }
 declaration_qualifier_list
-  : storage_class
-  	{ singleton (CStorageSpec $1) }
+  : declaration_qualifier_without_types
+        { singleton $1 }
 
-  | attrs storage_class
-  	{ reverseList (liftCAttrs $1) `snoc` (CStorageSpec $2) }
+  | attrs declaration_qualifier_without_types
+  	{ reverseList (liftCAttrs $1) `snoc` $2 }
 
-  | type_qualifier_list storage_class
-  	{ rmap CTypeQual $1 `snoc` CStorageSpec $2 }
+  | type_qualifier_list declaration_qualifier_without_types
+  	{ rmap CTypeQual $1 `snoc` $2 }
 
-  | type_qualifier_list attrs storage_class
-  	{ (rmap CTypeQual $1 `rappend` liftCAttrs $2) `snoc` CStorageSpec $3 }
+  | type_qualifier_list attrs declaration_qualifier_without_types
+  	{ (rmap CTypeQual $1 `rappend` liftCAttrs $2) `snoc` $3 }
 
   | declaration_qualifier_list declaration_qualifier
   	{ $1 `snoc` $2 }
@@ -786,12 +796,20 @@ declaration_qualifier_list
   	{ addTrailingAttrs $1 $2 }
 
 --
--- declaration_qualifier :- storage_class | type_qualifier
+-- declaration_qualifier :- storage_class | type_qualifier | function_specifier | alignment_specifier
 --
 declaration_qualifier :: { CDeclSpec }
 declaration_qualifier
-  : storage_class		{ CStorageSpec $1 }
-  | type_qualifier		{ CTypeQual $1 }     -- const or volatile
+  : storage_class		     { CStorageSpec $1 }
+  | type_qualifier		     { CTypeQual $1 }
+  | function_specifier               { CFunSpec $1 }
+  | alignment_specifier              { CAlignSpec $1 }
+
+
+declaration_qualifier_without_types :: { CDeclSpec }
+  : storage_class		     { CStorageSpec $1 }
+  | function_specifier               { CFunSpec $1 }
+  | alignment_specifier              { CAlignSpec $1 }
 
 
 -- parse C storage class specifier (C99 6.7.1)
@@ -807,6 +825,17 @@ storage_class
   | register			{% withNodeInfo $1 $ CRegister }
   | "__thread"			{% withNodeInfo $1 $ CThread }
 
+-- parse C function specifier (C11 6.7.4)
+function_specifier :: { CFunSpec }
+function_specifier
+  : inline		{% withNodeInfo $1 $ CInlineQual }
+  | "_Noreturn"         {% withNodeInfo $1 $ CNoreturnQual }
+
+-- parse C alignment specifier (C11 6.7.5)
+alignment_specifier :: { CAlignSpec }
+alignment_specifier
+  : alignas '(' type_name ')'           {% withNodeInfo $1 $ CAlignAsType $3 }
+  | alignas '(' constant_expression ')' {% withNodeInfo $1 $ CAlignAsExpr $3 }
 
 -- parse C type specifier (C99 6.7.2)
 --
@@ -815,11 +844,14 @@ storage_class
 --
 -- type_specifier :- <permute> type_qualifier* (basic_type_name+ | elaborated_type_name | g)
 --
+-- Type specifier _Atomic(type) is not yet supported because of conflicts with type qualifier _Atomic
 type_specifier :: { [CDeclSpec] }
 type_specifier
   : basic_type_specifier		{ reverse $1 }	-- Arithmetic or void
   | sue_type_specifier			{ reverse $1 }	-- Struct/Union/Enum
   | typedef_type_specifier		{ reverse $1 }	-- Typedef
+--  | "_Atomic" '(' type_name ')'                         -- _Atomic(type)
+--        {% withNodeInfo $1 $ \at -> [CTypeSpec (CAtomicType $3 at)] }
 
 basic_type_name :: { CTypeSpec }
 basic_type_name
@@ -1186,15 +1218,16 @@ enumerator
   | identifier '=' constant_expression      { ($1, Just $3) }
 
 
--- parse C type qualifier (C99 6.7.3) and function specifier (C11 6.7.4)
+-- parse C type qualifier (C11 6.7.3)
 --
+-- concerning atomic, note:  If the _Atomic keyword is immediately followed by a left
+-- parenthesis, it should be interpreted as a type specifier (with a type name), not as a type qualifier
 type_qualifier :: { CTypeQual }
 type_qualifier
   : const		{% withNodeInfo $1 $ CConstQual }
   | volatile		{% withNodeInfo $1 $ CVolatQual }
   | restrict		{% withNodeInfo $1 $ CRestrQual }
-  | inline		{% withNodeInfo $1 $ CFunSpecQual . CInlineQual }
-  | "_Noreturn"         {% withNodeInfo $1 $ CFunSpecQual . CNoreturnQual }
+  | "_Atomic"           {% withNodeInfo $1 $ CAtomicQual }
 
 -- a list containing at least one type_qualifier (const, volatile, restrict, inline, _Noreturn)
 --    and additionally CAttrs
@@ -1664,10 +1697,11 @@ array_designator
   	{% withNodeInfo $1 $ CRangeDesig $2 $4 }
 
 
--- parse C primary expression (C99 6.5.1)
+-- parse C primary expression (C11 6.5.1)
 --
 -- We cannot use a typedef name as a variable
 --
+-- * C11: generic selection
 -- * GNU extensions:
 --     allow a compound statement as an expression
 --     __builtin_va_arg
@@ -1675,11 +1709,12 @@ array_designator
 --     __builtin_types_compatible_p
 primary_expression :: { CExpr }
 primary_expression
-  : ident		       {% withNodeInfo $1 $ CVar $1 }
+  : ident		 {% withNodeInfo $1 $ CVar $1 }
   | constant	  	 { CConst $1 }
-  | string_literal { CConst (liftStrLit $1) }
-  | '(' expression ')'	{ $2 }
-
+  | string_literal       { CConst (liftStrLit $1) }
+  | '(' expression ')'	 { $2 }
+  | "_Generic" '(' assignment_expression ',' generic_assoc_list ')'
+        {% withNodeInfo $1 $ CGenericSelection $3 (reverse $5) }
   -- GNU extensions
   | '(' compound_statement ')'
   	{% withNodeInfo $1 $ CStatExpr $2 }
@@ -1693,6 +1728,16 @@ primary_expression
   | "__builtin_types_compatible_p" '(' type_name ',' type_name ')'
   	{% withNodeInfo $1 $ CBuiltinExpr . CBuiltinTypesCompatible $3 $5 }
 
+-- Generic Selection association list (C11 6.5.1.1)
+--
+-- TODO: introduce AST type for generic association
+generic_assoc_list :: { Reversed [(Maybe CDecl, CExpr)] }
+  : generic_assoc_list ',' generic_assoc { $1 `snoc` $3 }
+  | generic_assoc                        { singleton $1 }
+generic_assoc :: { (Maybe CDecl, CExpr) }
+generic_assoc
+  : type_name ':' assignment_expression { (Just $1, $3) }
+  | default   ':' assignment_expression { (Nothing, $3) }
 
 offsetof_member_designator :: { Reversed [CDesignator] }
 offsetof_member_designator

@@ -33,8 +33,9 @@ module Language.C.Syntax.AST (
   CStructTag(..), CStructureUnion(..),  CEnumeration(..),
   -- * Declaration attributes
   CDeclSpec, partitionDeclSpecs,
-  CStorageSpec, CTypeSpec, isSUEDef, CTypeQual, CFunSpec,  CAttr,
+  CStorageSpec, CTypeSpec, isSUEDef, CTypeQual, CFunSpec, CAlignSpec,  CAttr,
   CFunctionSpecifier(..), CDeclarationSpecifier(..), CStorageSpecifier(..), CTypeSpecifier(..),
+  CAlignmentSpecifier(..),
   CTypeQualifier(..), CAttribute(..),
   -- * Declarators
   CDeclr,CDerivedDeclr,CArrSize,
@@ -56,7 +57,6 @@ module Language.C.Syntax.AST (
   -- * Annoated type class
   Annotated(..)
 ) where
-import Data.List
 import Language.C.Syntax.Constants
 import Language.C.Syntax.Ops
 import Language.C.Data.Ident
@@ -156,7 +156,11 @@ data CDeclaration a
     [(Maybe (CDeclarator a),  -- declarator (may be omitted)
       Maybe (CInitializer a), -- optional initialize
       Maybe (CExpression a))] -- optional size (const expr)
-    a
+    a                         -- annotation
+    | CStaticAssert
+      (CExpression a)         -- assert expression
+      (CStringLiteral a)      -- assert text
+      a                       -- annotation
     deriving (Show, Data,Typeable {-! ,CNode ,Annotated !-})
 
 -- Derive instance is a little bit ugly
@@ -164,6 +168,8 @@ instance Functor CDeclaration where
   fmap f (CDecl specs declarators annot) =
     CDecl (map (fmap f) specs) (map fmap3m declarators) (f annot)
       where fmap3m (a,b,c) = (fmap (fmap f) a, fmap (fmap f) b, fmap (fmap f) c)
+  fmap f (CStaticAssert expression strlit annot) =
+    CStaticAssert (fmap f expression) (fmap f strlit) (f annot)
 
 -- | C declarator (K&R A8.5, C99 6.7.5) and abstract declarator (K&R A8.8, C99 6.7.6)
 --
@@ -381,24 +387,26 @@ data CDeclarationSpecifier a
   = CStorageSpec (CStorageSpecifier a) -- ^ storage-class specifier or typedef
   | CTypeSpec    (CTypeSpecifier a)    -- ^ type name
   | CTypeQual    (CTypeQualifier a)    -- ^ type qualifier
+  | CFunSpec     (CFunctionSpecifier a) -- ^ function specifier
+  | CAlignSpec   (CAlignmentSpecifier a) -- ^ alignment specifier
     deriving (Show, Data,Typeable {-! ,CNode ,Functor, Annotated !-})
 
 
 -- | Separate the declaration specifiers
 --
--- Note that inline isn't actually a type qualifier, but a function specifier.
 -- @__attribute__@ of a declaration qualify declarations or declarators (but not types),
 -- and are therefore separated as well.
 partitionDeclSpecs :: [CDeclarationSpecifier a]
                    -> ( [CStorageSpecifier a], [CAttribute a]
                       , [CTypeQualifier a], [CTypeSpecifier a]
-                      , [CFunctionSpecifier a] )
-partitionDeclSpecs = foldr deals ([],[],[],[],[]) where
-    deals (CTypeQual (CFunSpecQual fs)) (sts,ats,tqs,tss,fss) = (sts,ats,tqs,tss,fs:fss)
-    deals (CStorageSpec sp) (sts,ats,tqs,tss,fss)  = (sp:sts,ats,tqs,tss,fss)
-    deals (CTypeQual (CAttrQual attr)) (sts,ats,tqs,tss,fss)  = (sts,attr:ats,tqs,tss,fss)
-    deals (CTypeQual tq) (sts,ats,tqs,tss,fss)     = (sts,ats,tq:tqs,tss,fss)
-    deals (CTypeSpec ts) (sts,ats,tqs,tss,fss)     = (sts,ats,tqs,ts:tss,fss)
+                      , [CFunctionSpecifier a], [CAlignmentSpecifier a])
+partitionDeclSpecs = foldr deals ([],[],[],[],[],[]) where
+    deals (CStorageSpec sp) (sts,ats,tqs,tss,fss,ass)  = (sp:sts,ats,tqs,tss,fss,ass)
+    deals (CTypeQual (CAttrQual attr)) (sts,ats,tqs,tss,fss,ass)  = (sts,attr:ats,tqs,tss,fss,ass)
+    deals (CTypeQual tq) (sts,ats,tqs,tss,fss,ass)     = (sts,ats,tq:tqs,tss,fss,ass)
+    deals (CTypeSpec ts) (sts,ats,tqs,tss,fss,ass)     = (sts,ats,tqs,ts:tss,fss,ass)
+    deals (CFunSpec fs) (sts,ats,tqs,tss,fss,ass)      = (sts,ats,tqs,tss,fs:fss,ass)
+    deals (CAlignSpec as) (sts,ats,tqs,tss,fss,ass)    = (sts,ats,tqs,tss,fss,as:ass)
 
 -- | C storage class specifier (and typedefs) (K&R A8.1, C99 6.7.1)
 type CStorageSpec = CStorageSpecifier NodeInfo
@@ -408,7 +416,7 @@ data CStorageSpecifier a
   | CStatic   a     -- ^ static
   | CExtern   a     -- ^ extern
   | CTypedef  a     -- ^ typedef
-  | CThread   a     -- ^ GNUC thread local storage
+  | CThread   a     -- ^ C11/GNUC thread local storage
     deriving (Show, Eq,Ord,Data,Typeable {-! ,CNode ,Functor ,Annotated !-})
 
 
@@ -437,6 +445,7 @@ data CTypeSpecifier a
   | CTypeDef     Ident        a      -- ^ Typedef name
   | CTypeOfExpr  (CExpression a)  a  -- ^ @typeof(expr)@
   | CTypeOfType  (CDeclaration a) a  -- ^ @typeof(type)@
+  | CAtomicType  (CDeclaration a) a  -- ^ @_Atomic(type)@
     deriving (Show, Data,Typeable {-! ,CNode ,Functor ,Annotated !-})
 
 
@@ -446,7 +455,7 @@ isSUEDef (CSUType (CStruct _ _ (Just _) _ _) _) = True
 isSUEDef (CEnumType (CEnum _ (Just _) _ _) _) = True
 isSUEDef _ = False
 
--- | C type qualifiers (K&R A8.2, C99 6.7.3), function specifiers (C99 6.7.4), and attributes.
+-- | C type qualifiers (K&R A8.2, C99 6.7.3) and attributes.
 --
 -- @const@, @volatile@ and @restrict@ type qualifiers
 -- Additionally, @__attribute__@ annotations for declarations and declarators, and
@@ -456,7 +465,7 @@ data CTypeQualifier a
   = CConstQual a
   | CVolatQual a
   | CRestrQual a
-  | CFunSpecQual (CFunctionSpecifier a)
+  | CAtomicQual a
   | CAttrQual  (CAttribute a)
     deriving (Show, Data,Typeable {-! ,CNode ,Functor ,Annotated !-})
 
@@ -467,6 +476,14 @@ type CFunSpec = CFunctionSpecifier NodeInfo
 data CFunctionSpecifier a
   = CInlineQual a
   | CNoreturnQual a
+    deriving (Show, Data,Typeable {-! ,CNode ,Functor ,Annotated !-})
+
+-- | C alignment specifiers (C99 6.7.5)
+--
+type CAlignSpec = CAlignmentSpecifier NodeInfo
+data CAlignmentSpecifier a
+  = CAlignAsType (CDeclaration a) a  -- ^ @_Alignas(type)@
+  | CAlignAsExpr (CExpression a) a   -- ^ @_Alignas(expr)@
     deriving (Show, Data,Typeable {-! ,CNode ,Functor ,Annotated !-})
 
 
@@ -651,6 +668,7 @@ data CExpression a
   | CCompoundLit (CDeclaration a)
                  (CInitializerList a)    -- type name & initialiser list
                  a                       -- ^ C99 compound literal
+  | CGenericSelection (CExpression a) [(Maybe (CDeclaration a), CExpression a)] a -- ^ C11 generic selection
   | CStatExpr    (CStatement a) a        -- ^ GNU C compound statement as expr
   | CLabAddrExpr Ident a                 -- ^ GNU C address of label
   | CBuiltinExpr (CBuiltinThing a)       -- ^ builtin expressions, see 'CBuiltin'
@@ -685,7 +703,10 @@ instance Functor CExpression where
         fmap _f (CStatExpr a1 a2) = CStatExpr (fmap _f a1) (_f a2)
         fmap _f (CLabAddrExpr a1 a2) = CLabAddrExpr a1 (_f a2)
         fmap _f (CBuiltinExpr a1) = CBuiltinExpr (fmap _f a1)
-
+        fmap _f (CGenericSelection expr list annot) =
+          CGenericSelection (fmap _f expr) (map fmap_helper list) (_f annot)
+          where
+            fmap_helper (ma1, a2) = (fmap (fmap _f) ma1, fmap _f a2)
 
 -- | GNU Builtins, which cannot be typed in C99
 type CBuiltin = CBuiltinThing NodeInfo
@@ -788,12 +809,15 @@ instance Annotated CFunctionDef where
 
 instance CNode t1 => CNode (CDeclaration t1) where
         nodeInfo (CDecl _ _ n) = nodeInfo n
+        nodeInfo (CStaticAssert _ _ n) = nodeInfo n
 instance CNode t1 => Pos (CDeclaration t1) where
         posOf x = posOf (nodeInfo x)
 
 instance Annotated CDeclaration where
         annotation (CDecl _ _ n) = n
+        annotation (CStaticAssert _ _ n) = n
         amap f (CDecl a_1 a_2 a_3) = CDecl a_1 a_2 (f a_3)
+        amap f (CStaticAssert a_1 a_2 a_3) = CStaticAssert a_1 a_2 (f a_3)
 
 instance CNode t1 => CNode (CDeclarator t1) where
         nodeInfo (CDeclr _ _ _ _ n) = nodeInfo n
@@ -939,6 +963,8 @@ instance CNode t1 => CNode (CDeclarationSpecifier t1) where
         nodeInfo (CStorageSpec d) = nodeInfo d
         nodeInfo (CTypeSpec d) = nodeInfo d
         nodeInfo (CTypeQual d) = nodeInfo d
+        nodeInfo (CFunSpec d) = nodeInfo d
+        nodeInfo (CAlignSpec d) = nodeInfo d
 instance CNode t1 => Pos (CDeclarationSpecifier t1) where
         posOf x = posOf (nodeInfo x)
 
@@ -946,14 +972,20 @@ instance Functor CDeclarationSpecifier where
         fmap _f (CStorageSpec a1) = CStorageSpec (fmap _f a1)
         fmap _f (CTypeSpec a1) = CTypeSpec (fmap _f a1)
         fmap _f (CTypeQual a1) = CTypeQual (fmap _f a1)
+        fmap _f (CFunSpec a1) = CFunSpec (fmap _f a1)
+        fmap _f (CAlignSpec a1) = CAlignSpec (fmap _f a1)
 
 instance Annotated CDeclarationSpecifier where
         annotation (CStorageSpec n) = annotation n
         annotation (CTypeSpec n) = annotation n
         annotation (CTypeQual n) = annotation n
+        annotation (CFunSpec n) = annotation n
+        annotation (CAlignSpec n) = annotation n
         amap f (CStorageSpec n) = CStorageSpec (amap f n)
         amap f (CTypeSpec n) = CTypeSpec (amap f n)
         amap f (CTypeQual n) = CTypeQual (amap f n)
+        amap f (CFunSpec n) = CFunSpec (amap f n)
+        amap f (CAlignSpec n) = CAlignSpec (amap f n)
 
 instance CNode t1 => CNode (CStorageSpecifier t1) where
         nodeInfo (CAuto d) = nodeInfo d
@@ -1005,6 +1037,7 @@ instance CNode t1 => CNode (CTypeSpecifier t1) where
         nodeInfo (CTypeDef _ n) = nodeInfo n
         nodeInfo (CTypeOfExpr _ n) = nodeInfo n
         nodeInfo (CTypeOfType _ n) = nodeInfo n
+        nodeInfo (CAtomicType _ n) = nodeInfo n
 instance CNode t1 => Pos (CTypeSpecifier t1) where
         posOf x = posOf (nodeInfo x)
 
@@ -1026,6 +1059,7 @@ instance Functor CTypeSpecifier where
         fmap _f (CTypeDef a1 a2) = CTypeDef a1 (_f a2)
         fmap _f (CTypeOfExpr a1 a2) = CTypeOfExpr (fmap _f a1) (_f a2)
         fmap _f (CTypeOfType a1 a2) = CTypeOfType (fmap _f a1) (_f a2)
+        fmap _f (CAtomicType a1 a2) = CAtomicType (fmap _f a1) (_f a2)
 
 instance Annotated CTypeSpecifier where
         annotation (CVoidType n) = n
@@ -1045,6 +1079,7 @@ instance Annotated CTypeSpecifier where
         annotation (CTypeDef _ n) = n
         annotation (CTypeOfExpr _ n) = n
         annotation (CTypeOfType _ n) = n
+        annotation (CAtomicType _ n) = n
         amap f (CVoidType a_1) = CVoidType (f a_1)
         amap f (CCharType a_1) = CCharType (f a_1)
         amap f (CShortType a_1) = CShortType (f a_1)
@@ -1062,12 +1097,13 @@ instance Annotated CTypeSpecifier where
         amap f (CTypeDef a_1 a_2) = CTypeDef a_1 (f a_2)
         amap f (CTypeOfExpr a_1 a_2) = CTypeOfExpr a_1 (f a_2)
         amap f (CTypeOfType a_1 a_2) = CTypeOfType a_1 (f a_2)
+        amap f (CAtomicType a_1 a_2) = CAtomicType a_1 (f a_2)
 
 instance CNode t1 => CNode (CTypeQualifier t1) where
         nodeInfo (CConstQual d) = nodeInfo d
         nodeInfo (CVolatQual d) = nodeInfo d
         nodeInfo (CRestrQual d) = nodeInfo d
-        nodeInfo (CFunSpecQual d) = nodeInfo d
+        nodeInfo (CAtomicQual d) = nodeInfo d
         nodeInfo (CAttrQual d) = nodeInfo d
 instance CNode t1 => Pos (CTypeQualifier t1) where
         posOf x = posOf (nodeInfo x)
@@ -1076,19 +1112,19 @@ instance Functor CTypeQualifier where
         fmap _f (CConstQual a1) = CConstQual (_f a1)
         fmap _f (CVolatQual a1) = CVolatQual (_f a1)
         fmap _f (CRestrQual a1) = CRestrQual (_f a1)
-        fmap _f (CFunSpecQual a1) = CFunSpecQual (fmap _f a1)
+        fmap _f (CAtomicQual a1) = CAtomicQual (_f a1)
         fmap _f (CAttrQual a1) = CAttrQual (fmap _f a1)
 
 instance Annotated CTypeQualifier where
         annotation (CConstQual n) = n
         annotation (CVolatQual n) = n
         annotation (CRestrQual n) = n
-        annotation (CFunSpecQual n) = annotation n
+        annotation (CAtomicQual n) = n
         annotation (CAttrQual n) = annotation n
         amap f (CConstQual a_1) = CConstQual (f a_1)
         amap f (CVolatQual a_1) = CVolatQual (f a_1)
         amap f (CRestrQual a_1) = CRestrQual (f a_1)
-        amap f (CFunSpecQual n) = CFunSpecQual (amap f n)
+        amap f (CAtomicQual a_1) = CAtomicQual (f a_1)
         amap f (CAttrQual n) = CAttrQual (amap f n)
 
 instance CNode t1 => CNode (CFunctionSpecifier t1) where
@@ -1106,6 +1142,22 @@ instance Annotated CFunctionSpecifier where
         annotation (CNoreturnQual n) = n
         amap f (CInlineQual a_1) = CInlineQual (f a_1)
         amap f (CNoreturnQual a_1) = CNoreturnQual (f a_1)
+
+instance CNode t1 => CNode (CAlignmentSpecifier t1) where
+        nodeInfo (CAlignAsType _ n) = nodeInfo n
+        nodeInfo (CAlignAsExpr _ n) = nodeInfo n
+instance CNode t1 => Pos (CAlignmentSpecifier t1) where
+        posOf x = posOf (nodeInfo x)
+
+instance Functor CAlignmentSpecifier where
+        fmap _f (CAlignAsType a1 a2) = CAlignAsType (fmap _f a1) (_f a2)
+        fmap _f (CAlignAsExpr a1 a2) = CAlignAsExpr (fmap _f a1) (_f a2)
+
+instance Annotated CAlignmentSpecifier where
+        annotation (CAlignAsType _ n) = n
+        annotation (CAlignAsExpr _ n) = n
+        amap f (CAlignAsType a_1 a_2) = CAlignAsType a_1 (f a_2)
+        amap f (CAlignAsExpr a_1 a_2) = CAlignAsExpr a_1 (f a_2)
 
 instance CNode t1 => CNode (CStructureUnion t1) where
         nodeInfo (CStruct _ _ _ _ n) = nodeInfo n
@@ -1201,6 +1253,7 @@ instance CNode t1 => CNode (CExpression t1) where
         nodeInfo (CVar _ n) = nodeInfo n
         nodeInfo (CConst d) = nodeInfo d
         nodeInfo (CCompoundLit _ _ n) = nodeInfo n
+        nodeInfo (CGenericSelection _ _ n) = nodeInfo n
         nodeInfo (CStatExpr _ n) = nodeInfo n
         nodeInfo (CLabAddrExpr _ n) = nodeInfo n
         nodeInfo (CBuiltinExpr d) = nodeInfo d
@@ -1226,6 +1279,7 @@ instance Annotated CExpression where
         annotation (CVar _ n) = n
         annotation (CConst n) = annotation n
         annotation (CCompoundLit _ _ n) = n
+        annotation (CGenericSelection _ _ n) = n
         annotation (CStatExpr _ n) = n
         annotation (CLabAddrExpr _ n) = n
         annotation (CBuiltinExpr n) = annotation n
@@ -1247,6 +1301,8 @@ instance Annotated CExpression where
         amap f (CVar a_1 a_2) = CVar a_1 (f a_2)
         amap f (CConst n) = CConst (amap f n)
         amap f (CCompoundLit a_1 a_2 a_3) = CCompoundLit a_1 a_2 (f a_3)
+        amap f (CGenericSelection a_1 a_2 a_3)
+          = CGenericSelection a_1 a_2 (f a_3)
         amap f (CStatExpr a_1 a_2) = CStatExpr a_1 (f a_2)
         amap f (CLabAddrExpr a_1 a_2) = CLabAddrExpr a_1 (f a_2)
         amap f (CBuiltinExpr n) = CBuiltinExpr (amap f n)

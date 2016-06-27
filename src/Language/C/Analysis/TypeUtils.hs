@@ -36,14 +36,6 @@ module Language.C.Analysis.TypeUtils (
 import Language.C.Analysis.SemRep
 import Language.C.Syntax.Constants
 
-instance Eq TypeQuals where
- (==) (TypeQuals c1 v1 r1) (TypeQuals c2 v2 r2) =
-    c1 == c2 && v1 == v2 && r1 == r2
-
-instance Ord TypeQuals where
-  (<=) (TypeQuals c1 v1 r1) (TypeQuals c2 v2 r2) =
-    c1 <= c2 && v1 <= v2 && r1 <= r2
-
 -- | Constructor for a simple integral type.
 integral :: IntType -> Type
 integral ty = DirectType (TyIntegral ty) noTypeQuals noAttributes
@@ -58,7 +50,7 @@ simplePtr t = PtrType t noTypeQuals []
 
 -- | A pointer with the @const@ qualifier.
 constPtr :: Type -> Type
-constPtr t = PtrType t (TypeQuals True False False) []
+constPtr t = PtrType t (TypeQuals True False False False) []
 
 -- | The type returned by sizeof (size_t). For now, this is just @int@.
 size_tType :: Type
@@ -95,7 +87,7 @@ constCharPtr = constPtr (integral TyChar)
 -- | The type of a constant string.
 stringType :: Type
 stringType  = ArrayType
-              (DirectType (TyIntegral TyChar) (TypeQuals True False False) noAttributes)
+              (DirectType (TyIntegral TyChar) (noTypeQuals { constant = True }) noAttributes)
               (UnknownArraySize False)
               noTypeQuals
               []

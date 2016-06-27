@@ -25,7 +25,6 @@ import Language.C.Analysis.NameSpaceMap
 
 import Language.C.Data
 import Language.C.Pretty
-import Language.C.Syntax
 
 import Text.PrettyPrint.HughesPJ
 import Data.Map (Map) ; import qualified Data.Map as Map
@@ -136,7 +135,7 @@ instance Pretty TypeQuals where
                                     | otherwise      = empty
 
 instance Pretty CompType where
-    pretty (CompType sue_ref tag members attrs node) =
+    pretty (CompType sue_ref tag members attrs _) =
         (text.show) tag <+> pretty sue_ref <+>
         braces (terminateSemi members) <+>
         pretty attrs
@@ -151,7 +150,7 @@ instance Pretty EnumType where
     pretty (EnumType sue_ref enumerators attrs _) =
       text "enum" <+> pretty sue_ref <+> braces (terminateSemi_ $ map prettyEnr enumerators) <+> pretty attrs
       where
-      prettyEnr (Enumerator ident expr enumty _) = pretty ident <+> text " = " <+> pretty expr
+      prettyEnr (Enumerator ident expr _enumty _) = pretty ident <+> text " = " <+> pretty expr
 
 instance Pretty Enumerator where
     pretty (Enumerator ident expr enumty _) = text "<" <> text "econst" <+> pretty (sueRef enumty) <> text ">" <+>
@@ -160,7 +159,7 @@ instance Pretty Enumerator where
 instance Pretty FunctionAttrs where
     pretty fattrs = hsep [pIf isInline "inline", pIf isNoreturn "_Noreturn"]
       where
-        pIf pred txt = if pred fattrs then text txt else empty
+        pIf isMatch txt = if isMatch fattrs then text txt else empty
 
 instance Pretty Storage where
     pretty NoStorage = empty

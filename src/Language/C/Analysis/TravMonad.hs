@@ -53,9 +53,7 @@ module Language.C.Analysis.TravMonad (
 )
 where
 import Language.C.Data
-import Language.C.Data.Ident
 import Language.C.Data.RList as RList
-import Language.C.Syntax
 
 import Language.C.Analysis.Builtins
 import Language.C.Analysis.SemError
@@ -64,9 +62,8 @@ import Language.C.Analysis.DefTable hiding (enterBlockScope,leaveBlockScope,
                                             enterFunctionScope,leaveFunctionScope)
 import qualified Language.C.Analysis.DefTable as ST
 
-import Data.IntMap (insert, lookup)
+import Data.IntMap (insert)
 import Data.Maybe
-import Control.Applicative (Applicative(..))
 import Control.Monad (liftM, ap)
 import Prelude hiding (lookup)
 
@@ -185,19 +182,19 @@ checkVarRedef def redecl =
         _ -> return ()
     where
     redefVarErr old_def kind = redefErr (declIdent def) LevelError def old_def kind
-    linkageErr def old_def =
-        case (declLinkage def, declLinkage old_def) of
-            (NoLinkage, _) -> redefErr (declIdent def) LevelError  def old_def NoLinkageOld
-            otherwise      -> redefErr (declIdent def) LevelError  def old_def DisagreeLinkage
+    linkageErr new_def old_def =
+        case (declLinkage new_def, declLinkage old_def) of
+            (NoLinkage, _) -> redefErr (declIdent new_def) LevelError new_def old_def NoLinkageOld
+            _              -> redefErr (declIdent new_def) LevelError new_def old_def DisagreeLinkage
 
     new_ty = declType def
     canBeOverwritten (Declaration _) = True
     canBeOverwritten (ObjectDef od)  = isTentative od
     canBeOverwritten _               = False
-    agreeOnLinkage def old_def
+    agreeOnLinkage new_def old_def
         | declStorage old_def == FunLinkage InternalLinkage = True
-        | not (hasLinkage $ declStorage def) || not (hasLinkage $ declStorage old_def) = False
-        | (declLinkage def) /= (declLinkage old_def) = False
+        | not (hasLinkage $ declStorage new_def) || not (hasLinkage $ declStorage old_def) = False
+        | (declLinkage new_def) /= (declLinkage old_def) = False
         | otherwise = True
 
 -- | handle variable declarations (external object declarations and function prototypes)

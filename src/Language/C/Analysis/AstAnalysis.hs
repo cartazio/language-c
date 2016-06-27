@@ -30,14 +30,13 @@ import Language.C.Analysis.SemError
 import Language.C.Analysis.SemRep
 import Language.C.Analysis.TravMonad
 import Language.C.Analysis.ConstEval
-import Language.C.Analysis.Debug
-import Language.C.Analysis.DefTable (DefTable, globalDefs, defineScopedIdent,
-                                     defineLabel, inFileScope, lookupTag,
+import Language.C.Analysis.Debug ()
+import Language.C.Analysis.DefTable (globalDefs,
+                                     defineLabel, inFileScope,
                                      lookupLabel, insertType, lookupType)
 import Language.C.Analysis.DeclAnalysis
 import Language.C.Analysis.TypeUtils
 import Language.C.Analysis.TypeCheck
-import Language.C.Analysis.TypeConversions
 
 import Language.C.Data
 import Language.C.Pretty
@@ -50,9 +49,6 @@ import Text.PrettyPrint.HughesPJ
 
 import Control.Monad
 import Prelude hiding (reverse)
-import Data.Either (rights)
-import Data.Foldable (foldrM)
-import Data.List hiding (reverse)
 import qualified Data.Map as Map
 import Data.Maybe
 
@@ -92,7 +88,7 @@ analyseFunDef :: (MonadTrav m) => CFunDef -> m ()
 analyseFunDef (CFunDef declspecs declr oldstyle_decls stmt node_info) = do
     -- analyse the declarator
     var_decl_info <- analyseVarDecl' True declspecs declr oldstyle_decls Nothing
-    let (VarDeclInfo name fun_spec storage_spec attrs ty declr_node) = var_decl_info
+    let (VarDeclInfo name fun_spec storage_spec attrs ty _declr_node) = var_decl_info
     when (isNoName name) $ astError node_info "NoName in analyseFunDef"
     let ident = identOfVarName name
     -- improve incomplete type
@@ -112,17 +108,21 @@ analyseFunDef (CFunDef declspecs declr oldstyle_decls stmt node_info) = do
     improveFunDefType ty = return $ ty
 
 -- | Analyse a declaration other than a function definition
+--
+--   Note: static assertions are not analysed
 analyseDecl :: (MonadTrav m) => Bool -> CDecl -> m ()
+analyseDecl is_local decl@(CStaticAssert _expr _strlit _annot) = return ()
 analyseDecl is_local decl@(CDecl declspecs declrs node)
     | null declrs =
         case typedef_spec of Just _  -> astError node "bad typedef declaration: missing declarator"
                              Nothing -> analyseTypeDecl decl >> return ()
     | (Just declspecs') <- typedef_spec = mapM_ (uncurry (analyseTyDef declspecs')) declr_list
-    | otherwise   = do let (storage_specs, attrs, typequals, typespecs, inline) =
+    | otherwise   = do let (storage_specs, attrs, typequals, typespecs, funspecs, alignspecs) =
                              partitionDeclSpecs declspecs
                        canonTySpecs <- canonicalTypeSpec typespecs
+                       -- TODO: alignspecs not yet processed
                        let specs =
-                             (storage_specs, attrs, typequals, canonTySpecs, inline)
+                             (storage_specs, attrs, typequals, canonTySpecs, funspecs)
                        mapM_ (uncurry (analyseVarDeclr specs)) declr_list
     where
     declr_list = zip (True : repeat False) declrs
@@ -232,6 +232,7 @@ extVarDecl (VarDeclInfo var_name fun_spec storage_spec attrs typ node_info) init
        ident = identOfVarName var_name
        globalStorage _ | (fun_spec /= noFunctionAttrs) =
                            astError node_info "invalid function specifier for external variable"
+       globalStorage AutoSpec      = astError node_info "file-scope declaration specifies storage `auto'"
        globalStorage RegSpec       =
          do when (isJust init_opt) $ astError node_info "initializer given for global register variable"
             case var_name of
@@ -395,7 +396,7 @@ tStmt c (CFor i g inc s _)       =
      either (maybe (return ()) checkExpr) (analyseDecl True) i
      maybe (return ()) (checkGuard c) g
      maybe (return ()) checkExpr inc
-     tStmt (LoopCtx : c) s
+     _ <- tStmt (LoopCtx : c) s
      leaveBlockScope
      return voidType
   where checkExpr e = tExpr c RValue e >> return ()
@@ -487,7 +488,7 @@ tExpr c side e =
            Just t -> return t
            Nothing ->
              do t <- tExpr' c side e
-                withDefTable (\dt -> (t, insertType dt n t))
+                withDefTable (\dt1 -> (t, insertType dt1 n t))
     Nothing -> tExpr' c side e
 
 -- | Typecheck an expression, with information about whether it
@@ -546,11 +547,11 @@ tExpr' c side (CCast d e ni)           =
      return dt
 tExpr' c side (CSizeofExpr e ni)       =
   do when (side == LValue) $ typeError ni "sizeof as lvalue"
-     tExpr c RValue e
+     _ <- tExpr c RValue e
      return size_tType
 tExpr' c side (CAlignofExpr e ni)      =
   do when (side == LValue) $ typeError ni "alignof as lvalue"
-     tExpr c RValue e
+     _ <- tExpr c RValue e
      return size_tType
 tExpr' c side (CComplexReal e ni)      = complexBaseType ni c side e
 tExpr' c side (CComplexImag e ni)      = complexBaseType ni c side e
@@ -568,6 +569,33 @@ tExpr' _ LValue (CAlignofType _ ni)    =
   typeError ni "alignoftype as lvalue"
 tExpr' _ LValue (CSizeofType _ ni)     =
   typeError ni "sizeoftype as lvalue"
+tExpr' ctx side (CGenericSelection expr list ni) = do
+  ty_sel <- tExpr ctx side expr
+  ty_list <- mapM analyseAssoc list
+  def_expr_ty <-
+    case dropWhile (isJust . fst) ty_list of
+      [(Nothing,tExpr)] -> return $ Just tExpr
+      [] -> return $ Nothing
+      _ -> astError ni "more than one default clause in generic selection"
+  case dropWhile (maybe True (not . typesMatch ty_sel) . fst) ty_list of
+    ((_,expr_ty) : _ ) -> return $ expr_ty
+    [] -> case def_expr_ty of
+      (Just expr_ty) -> return $ expr_ty
+      Nothing -> astError ni ("no clause matches for generic selection (not fully supported) - selector type is " ++ show (pretty ty_sel) ++
+                              ", available types are " ++ show (map (pretty.fromJust.fst) (filter (isJust.fst) ty_list)))
+  where
+    analyseAssoc (mdecl,expr) = do
+      tDecl <- mapM analyseTypeDecl mdecl
+      tExpr <- tExpr ctx side expr
+      return (tDecl, tExpr)
+    typesMatch (DirectType tn1 _ _) (DirectType tn2 _ _) = directTypesMatch tn1 tn2
+    typesMatch _ _ = False -- not fully supported
+    directTypesMatch TyVoid TyVoid = True
+    directTypesMatch (TyIntegral t1) (TyIntegral t2) = t1 == t2
+    directTypesMatch (TyFloating t1) (TyFloating t2) = t1 == t2
+    directTypesMatch (TyComplex t1) (TyComplex t2) = t1 == t2
+    directTypesMatch _ _ = False -- TODO: not fully supported
+
 tExpr' _ side (CVar i ni)              =
   lookupObject i >>=
   maybe (typeErrorOnLeft ni $ notFound i) (return . declType)
@@ -681,7 +709,7 @@ checkInits t dds ((ds, i) : is) =
                       (dd' : rest, []) -> return (rest, [dd'])
                       (_, d : _) -> return (advanceDesigList dds d, ds)
      t' <- tDesignator t ds'
-     tInit t' i
+     _ <- tInit t' i
      checkInits t dds' is
 
 advanceDesigList :: [CDesignator] -> CDesignator -> [CDesignator]
@@ -708,6 +736,8 @@ tDesignator t@(DirectType (TyComp _) _ _) (CMemberDesig m ni : ds) =
 tDesignator t@(DirectType (TyComp _) _ _) (d : _) =
   typeError (nodeInfo d) "array designator in compound initializer"
 tDesignator t [] = return t
+tDesignator t _ =
+  error "unepxected type with designator"
 
 tInit :: MonadTrav m => Type -> CInit -> m Initializer
 tInit t i@(CInitExpr e ni) =

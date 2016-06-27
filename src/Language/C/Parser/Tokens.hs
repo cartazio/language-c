@@ -71,9 +71,11 @@ data CToken = CTokLParen   !PosLength            -- `('
             | CTokAlignof  !PosLength            -- `alignof'
                                                 -- (or `__alignof',
                                                 -- `__alignof__')
+            | CTokAlignas  !PosLength            -- `_Alignas'
             | CTokAsm      !PosLength            -- `asm'
                                                 -- (or `__asm',
                                                 -- `__asm__')
+            | CTokAtomic   !PosLength            -- `_Atomic'
             | CTokAuto     !PosLength            -- `auto'
             | CTokBreak    !PosLength            -- `break'
             | CTokBool     !PosLength            -- `_Bool'
@@ -91,6 +93,7 @@ data CToken = CTokLParen   !PosLength            -- `('
             | CTokExtern   !PosLength            -- `extern'
             | CTokFloat    !PosLength            -- `float'
             | CTokFor      !PosLength            -- `for'
+            | CTokGeneric  !PosLength            -- `_Generic'
             | CTokGoto     !PosLength            -- `goto'
             | CTokIf       !PosLength            -- `if'
             | CTokInline   !PosLength            -- `inline'
@@ -112,6 +115,7 @@ data CToken = CTokLParen   !PosLength            -- `('
                                                 -- `__signed__')
             | CTokSizeof   !PosLength            -- `sizeof'
             | CTokStatic   !PosLength            -- `static'
+            | CTokStaticAssert !PosLength        -- `_Static_assert'
             | CTokStruct   !PosLength            -- `struct'
             | CTokSwitch   !PosLength            -- `switch'
             | CTokTypedef  !PosLength            -- `typedef'
@@ -197,7 +201,9 @@ posLenOfTok (CTokLBrace   pos  ) = pos
 posLenOfTok (CTokRBrace   pos  ) = pos
 posLenOfTok (CTokEllipsis pos  ) = pos
 posLenOfTok (CTokAlignof  pos  ) = pos
+posLenOfTok (CTokAlignas  pos  ) = pos
 posLenOfTok (CTokAsm      pos  ) = pos
+posLenOfTok (CTokAtomic   pos  ) = pos
 posLenOfTok (CTokAuto     pos  ) = pos
 posLenOfTok (CTokBreak    pos  ) = pos
 posLenOfTok (CTokBool     pos  ) = pos
@@ -214,6 +220,7 @@ posLenOfTok (CTokEnum     pos  ) = pos
 posLenOfTok (CTokExtern   pos  ) = pos
 posLenOfTok (CTokFloat    pos  ) = pos
 posLenOfTok (CTokFor      pos  ) = pos
+posLenOfTok (CTokGeneric  pos  ) = pos
 posLenOfTok (CTokGoto     pos  ) = pos
 posLenOfTok (CTokInt      pos  ) = pos
 posLenOfTok (CTokInt128   pos  ) = pos
@@ -229,6 +236,7 @@ posLenOfTok (CTokShort    pos  ) = pos
 posLenOfTok (CTokSigned   pos  ) = pos
 posLenOfTok (CTokSizeof   pos  ) = pos
 posLenOfTok (CTokStatic   pos  ) = pos
+posLenOfTok (CTokStaticAssert pos) = pos
 posLenOfTok (CTokStruct   pos  ) = pos
 posLenOfTok (CTokSwitch   pos  ) = pos
 posLenOfTok (CTokTypedef  pos  ) = pos
@@ -296,7 +304,9 @@ instance Show CToken where
   showsPrec _ (CTokRBrace   _  ) = showString "}"
   showsPrec _ (CTokEllipsis _  ) = showString "..."
   showsPrec _ (CTokAlignof  _  ) = showString "alignof"
+  showsPrec _ (CTokAlignas  _  ) = showString "_Alignas"
   showsPrec _ (CTokAsm      _  ) = showString "asm"
+  showsPrec _ (CTokAtomic      _  ) = showString "_Atomic"
   showsPrec _ (CTokAuto     _  ) = showString "auto"
   showsPrec _ (CTokBool _)       = showString "_Bool"
   showsPrec _ (CTokBreak    _  ) = showString "break"
@@ -313,6 +323,7 @@ instance Show CToken where
   showsPrec _ (CTokExtern   _  ) = showString "extern"
   showsPrec _ (CTokFloat    _  ) = showString "float"
   showsPrec _ (CTokFor      _  ) = showString "for"
+  showsPrec _ (CTokGeneric  _  ) = showString "_Generic"
   showsPrec _ (CTokGoto     _  ) = showString "goto"
   showsPrec _ (CTokIf       _  ) = showString "if"
   showsPrec _ (CTokInline   _  ) = showString "inline"
@@ -328,11 +339,12 @@ instance Show CToken where
   showsPrec _ (CTokSigned   _  ) = showString "signed"
   showsPrec _ (CTokSizeof   _  ) = showString "sizeof"
   showsPrec _ (CTokStatic   _  ) = showString "static"
+  showsPrec _ (CTokStaticAssert   _  ) = showString "_Static_assert"
   showsPrec _ (CTokStruct   _  ) = showString "struct"
   showsPrec _ (CTokSwitch   _  ) = showString "switch"
   showsPrec _ (CTokTypedef  _  ) = showString "typedef"
   showsPrec _ (CTokTypeof   _  ) = showString "typeof"
-  showsPrec _ (CTokThread   _  ) = showString "__thread"
+  showsPrec _ (CTokThread   _  ) = showString "_Thread_local"
   showsPrec _ (CTokUnion    _  ) = showString "union"
   showsPrec _ (CTokUnsigned _  ) = showString "unsigned"
   showsPrec _ (CTokVoid     _  ) = showString "void"

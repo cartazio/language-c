@@ -18,7 +18,7 @@ module Language.C.Pretty (
     -- * Testing
     prettyUsingInclude
 ) where
-import Data.List (partition,nub,isSuffixOf)
+import Data.List (isSuffixOf)
 import qualified Data.Set as Set
 import Text.PrettyPrint.HughesPJ
 import Debug.Trace {- for warnings -}
@@ -213,11 +213,21 @@ instance Pretty CDecl where
             isAttrAfterSUE _ = False
             getAttrs Nothing = []
             getAttrs (Just (CDeclr _ _ _ cattrs _)) = cattrs
+    pretty (CStaticAssert expr str _) =
+      text "_Static_assert" <> parens (hsep (punctuate comma [pretty expr, pretty str]))
 
 instance Pretty CDeclSpec where
     pretty (CStorageSpec sp) = pretty sp
     pretty (CTypeSpec sp) = pretty sp
     pretty (CTypeQual qu) = pretty qu
+    pretty (CFunSpec fs) = pretty fs
+    pretty (CAlignSpec sa) = pretty sa
+
+instance Pretty CAlignSpec where
+    pretty (CAlignAsType decl _) =
+        text "_Alignas" <> parens (pretty decl)
+    pretty (CAlignAsExpr expr _) =
+        text "_Alignas" <> parens (pretty expr)
 
 instance Pretty CStorageSpec where
     pretty (CAuto _) = text "auto"
@@ -225,7 +235,7 @@ instance Pretty CStorageSpec where
     pretty (CStatic _) = text "static"
     pretty (CExtern _) = text "extern"
     pretty (CTypedef _) = text "typedef"
-    pretty (CThread _) = text "__thread"
+    pretty (CThread _) = text "_Thread_local"
 
 instance Pretty CTypeSpec where
     pretty (CVoidType _)        = text "void"
@@ -244,15 +254,17 @@ instance Pretty CTypeSpec where
     pretty (CEnumType enum _)   = pretty enum
     pretty (CTypeDef ident _)   = identP ident
     pretty (CTypeOfExpr expr _) =
-        text "typeof" <> text "(" <> pretty expr <> text ")"
+        text "typeof" <> parens (pretty expr)
     pretty (CTypeOfType decl _) =
-        text "typeof" <> text "(" <> pretty decl <> text ")"
+        text "typeof" <> parens (pretty decl)
+    pretty (CAtomicType decl _) =
+        text "_Atomic" <> parens (pretty decl)
 
 instance Pretty CTypeQual where
     pretty (CConstQual _) = text "const"
     pretty (CVolatQual _) = text "volatile"
     pretty (CRestrQual _) = text "__restrict"
-    pretty (CFunSpecQual fspec) = pretty fspec
+    pretty (CAtomicQual _) = text "_Atomic"
     pretty (CAttrQual a)  = attrlistP [a]
 
 instance Pretty CFunSpec where
@@ -427,7 +439,10 @@ instance Pretty CExpr where
 
     -- unary_expr :- && ident  {- address of label -}
     prettyPrec _p (CLabAddrExpr ident _) = text "&&" <> identP ident
-
+    prettyPrec _p (CGenericSelection expr assoc_list _) =
+      text "_Generic" <> (parens.hsep.punctuate comma) (pretty expr : map pAssoc assoc_list)
+      where
+        pAssoc (mty, expr1) = maybe (text "default") pretty mty <> text ":" <+> pretty expr1
     prettyPrec _p (CBuiltinExpr builtin) = pretty builtin
 
 instance Pretty CBuiltin where

@@ -257,6 +257,7 @@ readCOctal s@('0':r) =
     case r of
         (c:_) | isDigit c -> readCInteger OctalRepr r
         _                 -> readCInteger DecRepr s
+readCOctal _ = error "ReadOctal: string does not start with `0'"
 
 -- We use the odd looking list of string patterns here rather than normal
 -- string literals since GHC converts the latter into a sequence of string
@@ -267,16 +268,17 @@ readCOctal s@('0':r) =
 -- To make this a little more maintainable, we autogenerate it from this list,
 -- using the script GenerateKeywords.hs (in /scripts)
 {-
-alignof @__, asm @__, auto
+alignas _Alignas, alignof _Alignof __alignof alignof __alignof__, asm @__, atomic _Atomic, auto
 break, bool _Bool,
 case, char, const @__, continue, complex _Complex __complex__
 default, do, double,
 else, enum, extern,
-float, for, goto,
-if, inline @__, int, __int128, long, noreturn _Noreturn,
+float, for,
+generic _Generic, goto,
+if, inline @__, int, int128 __int128, long, noreturn _Noreturn,
 register, restrict @__, return
-short, signed @__, sizeof, static, struct, switch,
-typedef, typeof @__, thread __thread,
+short, signed @__, sizeof, static, staticAssert _Static_assert, struct, switch,
+typedef, typeof @__, thread __thread _Thread_local
 union, unsigned, void, volatile @__,
 while,
 label __label__
@@ -288,9 +290,16 @@ label __label__
 (CTokGnuC GnuCOffsetof) __builtin_offsetof
 (CTokGnuC GnuCTyCompat) __builtin_types_compatible_p
 -}
--- Tokens: alignof __alignof __alignof__ asm __asm __asm__ __attribute __attribute__ auto _Bool break __builtin_offsetof __builtin_types_compatible_p __builtin_va_arg case char _Complex __complex__ const __const __const__ continue default do double else enum __extension__ extern float for goto if __imag __imag__ inline __inline __inline__ int __int128 __label__ long _Noreturn __real __real__ register __restrict __restrict__ return short signed __signed __signed__ sizeof static struct switch __thread typedef typeof __typeof __typeof__ union unsigned void volatile __volatile __volatile__ while
+-- Tokens: _Alignas _Alignof __alignof alignof __alignof__ __asm asm __asm__ _Atomic auto break _Bool case char __const const __const__ continue _Complex __complex__ default do double else enum extern float for _Generic goto if __inline inline __inline__ int __int128 long _Noreturn register __restrict restrict __restrict__ return short __signed signed __signed__ sizeof static _Static_assert struct switch typedef __typeof typeof __typeof__ __thread _Thread_local union unsigned void __volatile volatile __volatile__ while __label__ __attribute __attribute__ __extension__ __real __real__ __imag __imag__ __builtin_va_arg __builtin_offsetof __builtin_types_compatible_p
+idkwtok ('_' : 'A' : 'l' : 'i' : 'g' : 'n' : 'a' : 's' : []) = tok 8 CTokAlignas
+idkwtok ('_' : 'A' : 'l' : 'i' : 'g' : 'n' : 'o' : 'f' : []) = tok 8 CTokAlignof
+idkwtok ('_' : 'A' : 't' : 'o' : 'm' : 'i' : 'c' : []) = tok 7 CTokAtomic
 idkwtok ('_' : 'B' : 'o' : 'o' : 'l' : []) = tok 5 CTokBool
+idkwtok ('_' : 'C' : 'o' : 'm' : 'p' : 'l' : 'e' : 'x' : []) = tok 8 CTokComplex
+idkwtok ('_' : 'G' : 'e' : 'n' : 'e' : 'r' : 'i' : 'c' : []) = tok 8 CTokGeneric
 idkwtok ('_' : 'N' : 'o' : 'r' : 'e' : 't' : 'u' : 'r' : 'n' : []) = tok 9 CTokNoreturn
+idkwtok ('_' : 'S' : 't' : 'a' : 't' : 'i' : 'c' : '_' : 'a' : 's' : 's' : 'e' : 'r' : 't' : []) = tok 14 CTokStaticAssert
+idkwtok ('_' : 'T' : 'h' : 'r' : 'e' : 'a' : 'd' : '_' : 'l' : 'o' : 'c' : 'a' : 'l' : []) = tok 13 CTokThread
 idkwtok ('_' : '_' : 'a' : 'l' : 'i' : 'g' : 'n' : 'o' : 'f' : []) = tok 9 CTokAlignof
 idkwtok ('a' : 'l' : 'i' : 'g' : 'n' : 'o' : 'f' : []) = tok 7 CTokAlignof
 idkwtok ('_' : '_' : 'a' : 'l' : 'i' : 'g' : 'n' : 'o' : 'f' : '_' : '_' : []) = tok 11 CTokAlignof
@@ -299,65 +308,64 @@ idkwtok ('a' : 's' : 'm' : []) = tok 3 CTokAsm
 idkwtok ('_' : '_' : 'a' : 's' : 'm' : '_' : '_' : []) = tok 7 CTokAsm
 idkwtok ('_' : '_' : 'a' : 't' : 't' : 'r' : 'i' : 'b' : 'u' : 't' : 'e' : []) = tok 11 (CTokGnuC GnuCAttrTok)
 idkwtok ('_' : '_' : 'a' : 't' : 't' : 'r' : 'i' : 'b' : 'u' : 't' : 'e' : '_' : '_' : []) = tok 13 (CTokGnuC GnuCAttrTok)
+idkwtok ('a' : 'u' : 't' : 'o' : []) = tok 4 CTokAuto
+idkwtok ('b' : 'r' : 'e' : 'a' : 'k' : []) = tok 5 CTokBreak
 idkwtok ('_' : '_' : 'b' : 'u' : 'i' : 'l' : 't' : 'i' : 'n' : '_' : 'o' : 'f' : 'f' : 's' : 'e' : 't' : 'o' : 'f' : []) = tok 18 (CTokGnuC GnuCOffsetof)
 idkwtok ('_' : '_' : 'b' : 'u' : 'i' : 'l' : 't' : 'i' : 'n' : '_' : 't' : 'y' : 'p' : 'e' : 's' : '_' : 'c' : 'o' : 'm' : 'p' : 'a' : 't' : 'i' : 'b' : 'l' : 'e' : '_' : 'p' : []) = tok 28 (CTokGnuC GnuCTyCompat)
 idkwtok ('_' : '_' : 'b' : 'u' : 'i' : 'l' : 't' : 'i' : 'n' : '_' : 'v' : 'a' : '_' : 'a' : 'r' : 'g' : []) = tok 16 (CTokGnuC GnuCVaArg)
-idkwtok ('_' : 'C' : 'o' : 'm' : 'p' : 'l' : 'e' : 'x' : []) = tok 8 CTokComplex
+idkwtok ('c' : 'a' : 's' : 'e' : []) = tok 4 CTokCase
+idkwtok ('c' : 'h' : 'a' : 'r' : []) = tok 4 CTokChar
 idkwtok ('_' : '_' : 'c' : 'o' : 'm' : 'p' : 'l' : 'e' : 'x' : '_' : '_' : []) = tok 11 CTokComplex
 idkwtok ('_' : '_' : 'c' : 'o' : 'n' : 's' : 't' : []) = tok 7 CTokConst
 idkwtok ('c' : 'o' : 'n' : 's' : 't' : []) = tok 5 CTokConst
 idkwtok ('_' : '_' : 'c' : 'o' : 'n' : 's' : 't' : '_' : '_' : []) = tok 9 CTokConst
-idkwtok ('_' : '_' : 'e' : 'x' : 't' : 'e' : 'n' : 's' : 'i' : 'o' : 'n' : '_' : '_' : []) = tok 13 (CTokGnuC GnuCExtTok)
-idkwtok ('_' : '_' : 'i' : 'm' : 'a' : 'g' : []) = tok 6 (CTokGnuC GnuCComplexImag)
-idkwtok ('_' : '_' : 'i' : 'm' : 'a' : 'g' : '_' : '_' : []) = tok 8 (CTokGnuC GnuCComplexImag)
-idkwtok ('_' : '_' : 'i' : 'n' : 'l' : 'i' : 'n' : 'e' : []) = tok 8 CTokInline
-idkwtok ('i' : 'n' : 'l' : 'i' : 'n' : 'e' : []) = tok 6 CTokInline
-idkwtok ('_' : '_' : 'i' : 'n' : 'l' : 'i' : 'n' : 'e' : '_' : '_' : []) = tok 10 CTokInline
-idkwtok ('_' : '_' : 'i' : 'n' : 't' : '1' : '2' : '8' : []) = tok 8 CTokInt128
-idkwtok ('_' : '_' : 'l' : 'a' : 'b' : 'e' : 'l' : '_' : '_' : []) = tok 9 CTokLabel
-idkwtok ('_' : '_' : 'r' : 'e' : 'a' : 'l' : []) = tok 6 (CTokGnuC GnuCComplexReal)
-idkwtok ('_' : '_' : 'r' : 'e' : 'a' : 'l' : '_' : '_' : []) = tok 8 (CTokGnuC GnuCComplexReal)
-idkwtok ('_' : '_' : 'r' : 'e' : 's' : 't' : 'r' : 'i' : 'c' : 't' : []) = tok 10 CTokRestrict
-idkwtok ('r' : 'e' : 's' : 't' : 'r' : 'i' : 'c' : 't' : []) = tok 8 CTokRestrict
-idkwtok ('_' : '_' : 'r' : 'e' : 's' : 't' : 'r' : 'i' : 'c' : 't' : '_' : '_' : []) = tok 12 CTokRestrict
-idkwtok ('_' : '_' : 's' : 'i' : 'g' : 'n' : 'e' : 'd' : []) = tok 8 CTokSigned
-idkwtok ('s' : 'i' : 'g' : 'n' : 'e' : 'd' : []) = tok 6 CTokSigned
-idkwtok ('_' : '_' : 's' : 'i' : 'g' : 'n' : 'e' : 'd' : '_' : '_' : []) = tok 10 CTokSigned
-idkwtok ('_' : '_' : 't' : 'h' : 'r' : 'e' : 'a' : 'd' : []) = tok 8 CTokThread
-idkwtok ('_' : '_' : 't' : 'y' : 'p' : 'e' : 'o' : 'f' : []) = tok 8 CTokTypeof
-idkwtok ('t' : 'y' : 'p' : 'e' : 'o' : 'f' : []) = tok 6 CTokTypeof
-idkwtok ('_' : '_' : 't' : 'y' : 'p' : 'e' : 'o' : 'f' : '_' : '_' : []) = tok 10 CTokTypeof
-idkwtok ('_' : '_' : 'v' : 'o' : 'l' : 'a' : 't' : 'i' : 'l' : 'e' : []) = tok 10 CTokVolatile
-idkwtok ('v' : 'o' : 'l' : 'a' : 't' : 'i' : 'l' : 'e' : []) = tok 8 CTokVolatile
-idkwtok ('_' : '_' : 'v' : 'o' : 'l' : 'a' : 't' : 'i' : 'l' : 'e' : '_' : '_' : []) = tok 12 CTokVolatile
-idkwtok ('a' : 'u' : 't' : 'o' : []) = tok 4 CTokAuto
-idkwtok ('b' : 'r' : 'e' : 'a' : 'k' : []) = tok 5 CTokBreak
-idkwtok ('c' : 'a' : 's' : 'e' : []) = tok 4 CTokCase
-idkwtok ('c' : 'h' : 'a' : 'r' : []) = tok 4 CTokChar
 idkwtok ('c' : 'o' : 'n' : 't' : 'i' : 'n' : 'u' : 'e' : []) = tok 8 CTokContinue
 idkwtok ('d' : 'e' : 'f' : 'a' : 'u' : 'l' : 't' : []) = tok 7 CTokDefault
 idkwtok ('d' : 'o' : []) = tok 2 CTokDo
 idkwtok ('d' : 'o' : 'u' : 'b' : 'l' : 'e' : []) = tok 6 CTokDouble
 idkwtok ('e' : 'l' : 's' : 'e' : []) = tok 4 CTokElse
 idkwtok ('e' : 'n' : 'u' : 'm' : []) = tok 4 CTokEnum
+idkwtok ('_' : '_' : 'e' : 'x' : 't' : 'e' : 'n' : 's' : 'i' : 'o' : 'n' : '_' : '_' : []) = tok 13 (CTokGnuC GnuCExtTok)
 idkwtok ('e' : 'x' : 't' : 'e' : 'r' : 'n' : []) = tok 6 CTokExtern
 idkwtok ('f' : 'l' : 'o' : 'a' : 't' : []) = tok 5 CTokFloat
 idkwtok ('f' : 'o' : 'r' : []) = tok 3 CTokFor
 idkwtok ('g' : 'o' : 't' : 'o' : []) = tok 4 CTokGoto
 idkwtok ('i' : 'f' : []) = tok 2 CTokIf
+idkwtok ('_' : '_' : 'i' : 'm' : 'a' : 'g' : []) = tok 6 (CTokGnuC GnuCComplexImag)
+idkwtok ('_' : '_' : 'i' : 'm' : 'a' : 'g' : '_' : '_' : []) = tok 8 (CTokGnuC GnuCComplexImag)
+idkwtok ('_' : '_' : 'i' : 'n' : 'l' : 'i' : 'n' : 'e' : []) = tok 8 CTokInline
+idkwtok ('i' : 'n' : 'l' : 'i' : 'n' : 'e' : []) = tok 6 CTokInline
+idkwtok ('_' : '_' : 'i' : 'n' : 'l' : 'i' : 'n' : 'e' : '_' : '_' : []) = tok 10 CTokInline
 idkwtok ('i' : 'n' : 't' : []) = tok 3 CTokInt
+idkwtok ('_' : '_' : 'i' : 'n' : 't' : '1' : '2' : '8' : []) = tok 8 CTokInt128
+idkwtok ('_' : '_' : 'l' : 'a' : 'b' : 'e' : 'l' : '_' : '_' : []) = tok 9 CTokLabel
 idkwtok ('l' : 'o' : 'n' : 'g' : []) = tok 4 CTokLong
+idkwtok ('_' : '_' : 'r' : 'e' : 'a' : 'l' : []) = tok 6 (CTokGnuC GnuCComplexReal)
+idkwtok ('_' : '_' : 'r' : 'e' : 'a' : 'l' : '_' : '_' : []) = tok 8 (CTokGnuC GnuCComplexReal)
 idkwtok ('r' : 'e' : 'g' : 'i' : 's' : 't' : 'e' : 'r' : []) = tok 8 CTokRegister
+idkwtok ('_' : '_' : 'r' : 'e' : 's' : 't' : 'r' : 'i' : 'c' : 't' : []) = tok 10 CTokRestrict
+idkwtok ('r' : 'e' : 's' : 't' : 'r' : 'i' : 'c' : 't' : []) = tok 8 CTokRestrict
+idkwtok ('_' : '_' : 'r' : 'e' : 's' : 't' : 'r' : 'i' : 'c' : 't' : '_' : '_' : []) = tok 12 CTokRestrict
 idkwtok ('r' : 'e' : 't' : 'u' : 'r' : 'n' : []) = tok 6 CTokReturn
 idkwtok ('s' : 'h' : 'o' : 'r' : 't' : []) = tok 5 CTokShort
+idkwtok ('_' : '_' : 's' : 'i' : 'g' : 'n' : 'e' : 'd' : []) = tok 8 CTokSigned
+idkwtok ('s' : 'i' : 'g' : 'n' : 'e' : 'd' : []) = tok 6 CTokSigned
+idkwtok ('_' : '_' : 's' : 'i' : 'g' : 'n' : 'e' : 'd' : '_' : '_' : []) = tok 10 CTokSigned
 idkwtok ('s' : 'i' : 'z' : 'e' : 'o' : 'f' : []) = tok 6 CTokSizeof
 idkwtok ('s' : 't' : 'a' : 't' : 'i' : 'c' : []) = tok 6 CTokStatic
 idkwtok ('s' : 't' : 'r' : 'u' : 'c' : 't' : []) = tok 6 CTokStruct
 idkwtok ('s' : 'w' : 'i' : 't' : 'c' : 'h' : []) = tok 6 CTokSwitch
+idkwtok ('_' : '_' : 't' : 'h' : 'r' : 'e' : 'a' : 'd' : []) = tok 8 CTokThread
 idkwtok ('t' : 'y' : 'p' : 'e' : 'd' : 'e' : 'f' : []) = tok 7 CTokTypedef
+idkwtok ('_' : '_' : 't' : 'y' : 'p' : 'e' : 'o' : 'f' : []) = tok 8 CTokTypeof
+idkwtok ('t' : 'y' : 'p' : 'e' : 'o' : 'f' : []) = tok 6 CTokTypeof
+idkwtok ('_' : '_' : 't' : 'y' : 'p' : 'e' : 'o' : 'f' : '_' : '_' : []) = tok 10 CTokTypeof
 idkwtok ('u' : 'n' : 'i' : 'o' : 'n' : []) = tok 5 CTokUnion
 idkwtok ('u' : 'n' : 's' : 'i' : 'g' : 'n' : 'e' : 'd' : []) = tok 8 CTokUnsigned
 idkwtok ('v' : 'o' : 'i' : 'd' : []) = tok 4 CTokVoid
+idkwtok ('_' : '_' : 'v' : 'o' : 'l' : 'a' : 't' : 'i' : 'l' : 'e' : []) = tok 10 CTokVolatile
+idkwtok ('v' : 'o' : 'l' : 'a' : 't' : 'i' : 'l' : 'e' : []) = tok 8 CTokVolatile
+idkwtok ('_' : '_' : 'v' : 'o' : 'l' : 'a' : 't' : 'i' : 'l' : 'e' : '_' : '_' : []) = tok 12 CTokVolatile
 idkwtok ('w' : 'h' : 'i' : 'l' : 'e' : []) = tok 5 CTokWhile
 
 idkwtok cs = \pos -> do
@@ -373,8 +381,8 @@ ignoreAttribute :: P ()
 ignoreAttribute = skipTokens (0::Int)
   where skipTokens :: Int -> P ()
         skipTokens n = do
-          tok <- lexToken' False
-          case tok of
+          ntok <- lexToken' False
+          case ntok of
             CTokRParen _ | n == 1    -> return ()
                          | otherwise -> skipTokens (n-1)
             CTokLParen _             -> skipTokens (n+1)
@@ -410,7 +418,7 @@ unescapeMultiChars _ = error "Unexpected end of multi-char constant"
 {-# INLINE token_ #-}
 -- token that ignores the string
 token_ :: Int -> (PosLength -> CToken) -> Position -> Int -> InputStream -> P CToken
-token_ len tok pos _ _ = return (tok (pos,len))
+token_ len mkTok pos _ _ = return (mkTok (pos,len))
 
 {-# INLINE token_fail #-}
 -- error token
@@ -423,15 +431,15 @@ token_fail errmsg pos _ _ =   failP pos [ "Lexical Error !", errmsg ]
 -- token that uses the string
 token :: (PosLength -> a -> CToken) -> (String -> a)
       -> Position -> Int -> InputStream -> P CToken
-token tok read pos len str = return (tok (pos,len) (read $ takeChars len str))
+token mkTok fromStr pos len str = return (mkTok (pos,len) (fromStr $ takeChars len str))
 
 {-# INLINE token_plus #-}
 -- token that may fail
 token_plus :: (PosLength -> a -> CToken) -> (String -> Either String a)
       -> Position -> Int -> InputStream -> P CToken
-token_plus tok read pos len str =
-  case read (takeChars len str) of Left err -> failP pos [ "Lexical error ! ", err ]
-                                   Right ok -> return $! tok (pos,len) ok
+token_plus mkTok fromStr pos len str =
+  case fromStr (takeChars len str) of Left err -> failP pos [ "Lexical error ! ", err ]
+                                      Right ok -> return $! mkTok (pos,len) ok
 
 -- -----------------------------------------------------------------------------
 -- The input type
@@ -465,17 +473,17 @@ alexMove pos _    = incPos pos 1
 lexicalError :: P a
 lexicalError = do
   pos <- getPos
-  (c,cs) <- liftM takeChar getInput
+  (c,_) <- liftM takeChar getInput
   failP pos
         ["Lexical error !",
          "The character " ++ show c ++ " does not fit here."]
 
 parseError :: P a
 parseError = do
-  tok <- getLastToken
-  failP (posOf tok)
+  lastTok <- getLastToken
+  failP (posOf lastTok)
         ["Syntax error !",
-         "The symbol `" ++ show tok ++ "' does not fit here."]
+         "The symbol `" ++ show lastTok ++ "' does not fit here."]
 
 -- there is a problem with ignored tokens here (that aren't skipped)
 -- consider
@@ -500,20 +508,20 @@ lexToken' modifyCache = do
     AlexEOF -> do
         handleEofToken
         return CTokEof
-    AlexError inp' -> lexicalError
-    AlexSkip  (pos', inp') len -> do
+    AlexError _inp -> lexicalError
+    AlexSkip  (pos', inp') _len -> do
         setPos pos'
         setInput inp'
         lexToken' modifyCache
     AlexToken (pos', inp') len action -> do
         setPos pos'
         setInput inp'
-        tok <- action pos len inp
-        when modifyCache $ setLastToken tok
-        return tok
+        nextTok <- action pos len inp
+        when modifyCache $ setLastToken nextTok
+        return nextTok
 
 lexC :: (CToken -> P a) -> P a
 lexC cont = do
-  tok <- lexToken
-  cont tok
+  nextTok <- lexToken
+  cont nextTok
 }

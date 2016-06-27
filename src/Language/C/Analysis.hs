@@ -61,7 +61,6 @@ where
 import Language.C.Analysis.SemError
 import Language.C.Analysis.SemRep
 
-import Language.C.Analysis.DefTable
 import Language.C.Analysis.TravMonad
 
 import Language.C.Analysis.AstAnalysis

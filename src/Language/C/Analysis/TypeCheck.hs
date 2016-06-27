@@ -2,7 +2,6 @@
 module Language.C.Analysis.TypeCheck where
 
 import Control.Monad
-import Data.Either
 import Data.Maybe
 import Language.C.Data.Ident
 import Language.C.Data.Node
@@ -11,12 +10,12 @@ import Language.C.Pretty
 import Language.C.Syntax.AST
 import Language.C.Syntax.Constants
 import Language.C.Syntax.Ops
-import Language.C.Analysis.Debug
 import Language.C.Analysis.DefTable
 import Language.C.Analysis.SemRep
 import Language.C.Analysis.TravMonad
 import Language.C.Analysis.TypeConversions
 import Language.C.Analysis.TypeUtils
+import Language.C.Analysis.Debug ()
 import Text.PrettyPrint.HughesPJ
 
 -- We used to re-implement and export the standard Either instance for
@@ -149,9 +148,9 @@ compositeType (PtrType t1 q1 a1) t2 | isIntegralType t2 =
   return $ PtrType t1 (mergeTypeQuals q1 (typeQuals t2)) a1
 compositeType t1 (PtrType t2 q2 a2) | isIntegralType t1 =
   return $ PtrType t2 (mergeTypeQuals (typeQuals t1) q2) a2
-compositeType (ArrayType t1 sz1 q1 a1) t2 | isIntegralType t2 =
+compositeType (ArrayType t1 _sz1 q1 a1) t2 | isIntegralType t2 =
   return $ PtrType t1 q1 a1
-compositeType t1 (ArrayType t2 sz2 q2 a2) | isIntegralType t1 =
+compositeType t1 (ArrayType t2 _sz2 q2 a2) | isIntegralType t1 =
   return $ PtrType t2 q2 a2
 compositeType (ArrayType t1 s1 q1 a1) (ArrayType t2 s2 q2 a2) =
   do t <- compositeType t1 t2
