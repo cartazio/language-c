@@ -5,4 +5,4 @@ all:
 	./test_out > test.out
 	diff test.expect test.out
 clean:
-	rm -rf Test.o Test.hi Test test_out
+	rm -rf test.c test_out *.o *.hi *.dyn_hi *.dyn_o *.out
