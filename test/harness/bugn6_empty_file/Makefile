@@ -1,5 +1,8 @@
+PROJECT_DIR=../../..
+OPT=-O2
+include $(PROJECT_DIR)/test/config.mk
 all:
-	ghc --make -O2 Test.hs
+	$(HC) $(HFLAGS) Test.hs
 	./Test > test.out
 	diff test.expect test.out
 clean:

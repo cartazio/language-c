@@ -13,7 +13,12 @@ darcs am *.patch
 # haskell updates
 # (update GHC to stable release)
 cabal update
-cabal install -p --upgrade-dependencies
+cabal install -p --upgrade-dependencies --only-dependencies
+
+# build & harness test
+cabal configure -fallWarnings --enable-tests
+cabal build
+cabal test
 
 # regression test
 DEFAULT_BROWSER=firefox bash scripts/regression_test

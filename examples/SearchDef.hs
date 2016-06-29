@@ -1,15 +1,10 @@
 -- Simple example demonstrating the syntax - semantic interplay: search and print definitions
 module Main where
-import System.Environment ; import System.FilePath
-import System.IO
-import Control.Arrow      ; import Control.Monad
+import System.Environment
+import Control.Arrow
+import Control.Monad
 import Control.Applicative
-import Debug.Trace
-import Data.Maybe
-import Data.Map (Map)     ; import qualified Data.Map as Map
-import Data.Set (Set)     ; import qualified Data.Set as Set
-import Data.Generics
-
+import qualified Data.Map as Map
 
 import Language.C              -- simple API
 import Language.C.Analysis     -- analysis API

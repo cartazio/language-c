@@ -5,9 +5,7 @@ import Language.C
 import Language.C.Analysis.AstAnalysis
 import Language.C.Analysis.TravMonad
 import Language.C.System.GCC
-import System.Console.GetOpt
 import System.Environment
-import System.Exit
 import System.IO
 
 processFile :: CLanguage -> [String] -> FilePath -> IO ()

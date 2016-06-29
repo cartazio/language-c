@@ -1,6 +1,6 @@
 Name:           language-c
 Version:        0.5.1
-Cabal-Version:  >= 1.6
+Cabal-Version:  >= 1.8
 Build-Type:     Simple
 License:        BSD3
 License-File:   LICENSE
@@ -39,7 +39,7 @@ Library
     Extensions: CPP, DeriveDataTypeable, PatternGuards, BangPatterns, ExistentialQuantification, GeneralizedNewtypeDeriving, ScopedTypeVariables
     Build-Depends:  filepath
     if flag(allWarnings)
-        ghc-options:     -Wall
+        ghc-options:     -Wall -Wno-redundant-constraints
     if flag(splitBase)
         Build-Depends: base >= 3 && < 5, process, directory, array, containers, pretty
 
@@ -110,3 +110,8 @@ Library
                       Language.C.Parser.Tokens
                       Language.C.Parser.Parser
 
+-- test description
+Test-Suite language-c-harness
+    type:       exitcode-stdio-1.0
+    main-is:    test/harness/run-harness.hs
+    build-depends: base, language-c, directory, process, filepath

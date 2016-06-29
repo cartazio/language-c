@@ -26,7 +26,7 @@ main = do
     ast <- parseCFile compiler Nothing opts c_file >>= checkResult "[parsing]"
 
     (globals,warnings) <- (runTrav_ >>> checkResult "[analysis]") $ analyseAST ast
-    mapM (hPutStrLn stderr . show) warnings
+    mapM_ (hPutStrLn stderr . show) warnings
     putStrLn "#include <stdio.h>"
     print $ pretty (generateSizeTests pat globals)
     where
@@ -58,11 +58,11 @@ generateSizeTests pat globals =
     fromComp (EnumDef _) = Nothing
     fromCompTyDef (TypeDef name ty _ _) =
       case ty of
-        (DirectType (TyComp ref@(CompTypeRef sueref tag _)) _ _) ->
+        (DirectType (TyComp ref@(CompTypeRef sueref _tag _)) _ _) ->
             Just (sueref,(ref,name))
         _ -> Nothing
 
-filterDefs :: (CNode v, Ord k) => String -> Map k v -> Map k v
+filterDefs :: (CNode v) => String -> Map k v -> Map k v
 filterDefs pat = Map.filter isInCFile
     where
     isInCFile = maybe False ((pat `isPrefixOf`) . takeBaseName) . fileOfNode
@@ -100,7 +100,7 @@ declareComp ty = CDeclExt (CDecl (map CTypeSpec (exportCompTypeRef ty)) [] undef
 defineComp :: CompType -> CExtDecl
 defineComp ty = CDeclExt (CDecl (map CTypeSpec (exportCompType $ derefTypeDefs ty)) [] undefNode)
     where
-    derefTypeDefs ty = everywhere (mkT derefTypeDef `extT` replaceEnum) ty
+    derefTypeDefs ty' = everywhere (mkT derefTypeDef `extT` replaceEnum) ty'
     replaceEnum (TyEnum _) = TyIntegral TyInt
     replaceEnum dty = dty
     
@@ -124,7 +124,7 @@ genSizeTest typeDefs tys =
       case getTagStr sue_ref tag of
         Nothing  -> ""
         Just tag_str -> "printf(\""++ tag_str ++": %lu\\n\",sizeof(" ++ tag_str ++ ")); ";
-    getTagStr ref@(AnonymousRef _) tag =
+    getTagStr ref@(AnonymousRef _) _tag =
       case Map.lookup ref typeDefs of
         Just (_,tyident) -> Just (identToString tyident)
         Nothing          -> Nothing -- ignoring inaccessible anonymous type

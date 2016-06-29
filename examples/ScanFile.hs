@@ -4,7 +4,6 @@ import System.Environment
 import System.FilePath
 import System.Exit
 import System.IO
-import Control.Arrow      hiding ((<+>))
 import Control.Monad
 import Debug.Trace
 import Text.PrettyPrint.HughesPJ
@@ -12,15 +11,14 @@ import Data.List
 
 import Language.C              -- simple API
 import Language.C.Analysis     -- analysis API
-import Language.C.Analysis.Debug -- debugging printer for analysis
 import Language.C.System.GCC   -- preprocessor used
 
 usageMsg :: String -> String
 usageMsg prg = render $
-  text "Usage:" <+> text prg <+> hsep (map text ["CPP_OPTIONS","input_file.c","[file-pattern]"]) $+$ 
+  text "Usage:" <+> text prg <+> hsep (map text ["CPP_OPTIONS","input_file.c","[file-pattern]"]) $+$
   (nest 4 $
     text "Environment Variables" $+$
-      (nest 4 $ 
+      (nest 4 $
          hsep [text "TRACE_EVENTS", text "trace definition events as they occur"]
       )
   )
@@ -34,8 +32,8 @@ main = do
     -- get cpp options and input file
     let (pat,opts,input_file) = case hasExtension (last args) of
                               True -> (Nothing,init args,last args)
-                              False -> let (pat,args') = (last args, init args)
-                                       in (Just pat,init args',last args')
+                              False -> let (pat',args') = (last args, init args)
+                                       in (Just pat',init args',last args')
 
     -- parse
     ast <- errorOnLeftM "Parse Error" $
@@ -45,7 +43,7 @@ main = do
     (globals,warnings) <- errorOnLeft "Semantic Error" $ runTrav_ $ traversal doTraceDecls ast
 
     -- print
-    mapM (hPutStrLn stderr . show) warnings
+    mapM_ (hPutStrLn stderr . show) warnings
     print $ pretty $ filterGlobalDecls (maybe False (fileOfInterest pat input_file) . fileOfNode) globals
 
     where
@@ -53,8 +51,6 @@ main = do
     traversal True  ast = withExtDeclHandler (analyseAST ast) $ \ext_decl ->
                           trace (declTrace ext_decl) (return ())
 
-    checkResult :: (Show a) => String -> (Either a b) -> IO b
-    checkResult label = either (error . (label++) . show) return
     fileOfInterest (Just pat) _ file_name = pat `isInfixOf` file_name
     fileOfInterest Nothing input_file file_name = fileOfInterest' (splitExtensions input_file) (splitExtension file_name)
     fileOfInterest' (c_base,c_ext) (f_base,f_ext) | takeBaseName c_base /= takeBaseName f_base = False
@@ -63,6 +59,7 @@ main = do
 
 errorOnLeft :: (Show a) => String -> (Either a b) -> IO b
 errorOnLeft msg = either (error . ((msg ++ ": ")++).show) return
+errorOnLeftM :: (Show a) => String -> IO (Either a b) -> IO b
 errorOnLeftM msg action = action >>= errorOnLeft msg
 
 declTrace :: DeclEvent -> String
@@ -72,8 +69,7 @@ declTrace event = render $ case event of
                                 ParamEvent pd        -> (text "Param:" <+> (pretty pd)  <+> file pd)
                                 LocalEvent ident_decl -> (text "Local:" <+> (pretty ident_decl)  <+> file ident_decl)
                                 TypeDefEvent tydef   -> (text "Typedef:" <+> (pretty tydef) <+> file tydef)
-                                AsmEvent block       -> (text $ "Assembler block")
+                                AsmEvent _block      -> (text $ "Assembler block")
     where
     file :: (CNode a) => a -> Doc
     file = text . show . posOfNode . nodeInfo
-                                                  

@@ -1,5 +1,3 @@
-import Language.Haskell.Pretty (prettyPrint)
-import Language.Haskell.Parser (ParseResult(ParseOk, ParseFailed), parseModule)
 
 import System.Environment (getArgs)
 import System.Exit (exitWith, ExitCode(ExitFailure))
@@ -32,5 +30,6 @@ data ShowPlaceholder = ShowPlaceholder
 instance Show ShowPlaceholder where
   showsPrec _ ShowPlaceholder = showString "_"
 
+decorate :: ShowS -> ShowS
 decorate app = showString "(" . app . showString ")"
 
