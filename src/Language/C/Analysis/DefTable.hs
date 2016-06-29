@@ -37,7 +37,6 @@ import Language.C.Data
 import Language.C.Analysis.NameSpaceMap
 import Language.C.Analysis.SemRep
 
-import Control.Applicative ((<|>))
 import qualified Data.Map as Map
 import Data.IntMap (IntMap, union)
 import qualified Data.IntMap as IntMap

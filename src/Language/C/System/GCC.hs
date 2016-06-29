@@ -75,7 +75,7 @@ gccParseCPPArgs args =
             (cpp_opt:rest)     | Just (opt,rest') <- getArgOpt cpp_opt rest
                                -> mungeArgs ((inp,out,cpp_opts `snoc` opt),unparsed) rest'
 
-            (cfile:rest)       | any (flip isSuffixOf cfile) (words ".c .hc .h")
+            (cfile:rest)       | any (`isSuffixOf` cfile) (words ".c .hc .h")
                                -> if isJust inp
                                    then Left "two input files given"
                                    else mungeArgs ((Just cfile,out,cpp_opts),unparsed) rest
@@ -95,7 +95,7 @@ type ParseArgsState = ((Maybe FilePath, Maybe FilePath, RList CppOption), (RList
 
 
 buildCppArgs :: CppArgs -> [String]
-buildCppArgs (CppArgs options extra_args _tmpdir input_file output_file_opt) = do
+buildCppArgs (CppArgs options extra_args _tmpdir input_file output_file_opt) =
        (concatMap tOption options)
     ++ outputFileOpt
     ++ ["-E", input_file]

@@ -36,7 +36,7 @@ import Language.C.Analysis.SemRep
 import Language.C.Analysis.TravMonad
 
 import Data.Foldable as F (foldrM)
-import Control.Monad (liftM,when,ap,unless)
+import Control.Monad (liftM,when,ap,unless,zipWithM)
 import Data.List (intercalate, mapAccumL)
 import qualified Data.Map as Map
 import Text.PrettyPrint.HughesPJ
@@ -98,7 +98,7 @@ tMemberDecls (CDecl declspecs [] node) =
                    Nothing node]
        _ -> astError node "anonymous member has a non-composite type"
 -- Named members
-tMemberDecls (CDecl declspecs declrs node) = mapM (uncurry tMemberDecl) (zip (True:repeat False) declrs)
+tMemberDecls (CDecl declspecs declrs node) = zipWithM tMemberDecl (True:repeat False) declrs
     where
     tMemberDecl handle_sue_def (Just member_declr,Nothing,bit_field_size_opt) =
         -- TODO: use analyseVarDecl here, not analyseVarDecl'
@@ -111,7 +111,7 @@ tMemberDecls (CDecl declspecs declrs node) = mapM (uncurry tMemberDecl) (zip (Tr
     tMemberDecl handle_sue_def (Nothing,Nothing,Just bit_field_size) =
         do let (storage_specs, _attrs, typequals, typespecs, _funspecs, _alignspecs) = partitionDeclSpecs declspecs
            -- TODO: funspecs/alignspecs not yet processed
-           storage_spec  <- canonicalStorageSpec storage_specs
+           _storage_spec  <- canonicalStorageSpec storage_specs
            -- TODO: storage_spec not used
            canonTySpecs  <- canonicalTypeSpec typespecs
            typ           <- tType handle_sue_def node typequals canonTySpecs [] []
@@ -136,7 +136,7 @@ data VarDeclInfo = VarDeclInfo VarName FunctionAttrs StorageSpec Attributes Type
 
 analyseVarDecl' :: (MonadTrav m) =>
                   Bool -> [CDeclSpec] ->
-                  CDeclr -> [CDecl] -> (Maybe CInit) -> m VarDeclInfo
+                  CDeclr -> [CDecl] -> Maybe CInit -> m VarDeclInfo
 analyseVarDecl' handle_sue_def declspecs declr oldstyle init_opt =
   do let (storage_specs, attrs, type_quals, type_specs, funspecs, _alignspecs) =
            partitionDeclSpecs declspecs
@@ -149,7 +149,7 @@ analyseVarDecl' handle_sue_def declspecs declr oldstyle init_opt =
 analyseVarDecl :: (MonadTrav m) =>
                   Bool -> [CStorageSpec] -> [CAttr] -> [CTypeQual] ->
                   TypeSpecAnalysis -> [CFunSpec] ->
-                  CDeclr -> [CDecl] -> (Maybe CInit) -> m VarDeclInfo
+                  CDeclr -> [CDecl] -> Maybe CInit -> m VarDeclInfo
 analyseVarDecl handle_sue_def storage_specs decl_attrs typequals canonTySpecs fun_specs
                (CDeclr name_opt derived_declrs asmname_opt declr_attrs node)
                oldstyle_params _init_opt
@@ -277,7 +277,7 @@ tDirectType handle_sue_def node ty_quals canonTySpec = do
 mergeTypeAttributes :: (MonadCError m) => NodeInfo -> TypeQuals -> [Attr] -> Type -> m Type
 mergeTypeAttributes node_info quals attrs typ =
     case typ of
-        DirectType ty_name quals' attrs' -> merge quals' attrs' $ mkDirect ty_name
+        DirectType ty_name quals' attrs' -> merge quals' attrs' $ DirectType ty_name
         PtrType ty quals' attrs'  -> merge quals' attrs' $ PtrType ty
         ArrayType ty array_sz quals' attrs' -> merge quals' attrs' $ ArrayType ty array_sz
         FunctionType fty attrs'
@@ -286,7 +286,6 @@ mergeTypeAttributes node_info quals attrs typ =
         TypeDefType tdr quals' attrs'
             -> merge quals' attrs' $ TypeDefType tdr
     where
-    mkDirect ty_name quals' attrs' = DirectType ty_name quals' attrs'
     merge quals' attrs' tyf = return $ tyf (mergeTypeQuals quals quals') (attrs' ++ attrs)
 
 typeDefRef :: (MonadCError m, MonadSymtab m) => NodeInfo -> Ident -> m TypeDefRef
@@ -354,7 +353,7 @@ tEnumType sue_ref enumerators attrs node = do
     nextEnumerator memo (ident,e) =
       let (memo',expr) = nextEnrExpr memo e in
       (memo', Enumerator ident expr ty (nodeInfo ident))
-    nextEnrExpr :: (Either Integer (Expr,Integer)) -> Maybe CExpr -> (Either Integer (Expr,Integer), CExpr)
+    nextEnrExpr :: Either Integer (Expr,Integer) -> Maybe CExpr -> (Either Integer (Expr,Integer), CExpr)
     nextEnrExpr (Left i) Nothing = (Left (succ i), intExpr i)
     nextEnrExpr (Right (e,offs)) Nothing = (Right (e, succ offs), offsExpr e offs)
     nextEnrExpr _ (Just e) = (Right (e,1), e)

@@ -212,7 +212,7 @@ canonicalType t =
 
 -- XXX: move to be with other flag functions
 testFlags :: Enum f => [f] -> Flags f -> Bool
-testFlags flags fi = all (flip testFlag fi) flags
+testFlags flags fi = all (`testFlag` fi) flags
 
 -- XXX: deal with FlagImag. No representation for it in Complex.
 -- XXX: deal with invalid combinations of flags?

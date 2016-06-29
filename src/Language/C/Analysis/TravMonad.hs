@@ -151,13 +151,13 @@ redefErr name lvl new old kind =
   throwTravError $ redefinition lvl (show name) kind (nodeInfo new) (nodeInfo old)
 
 -- TODO: unused
-checkIdentTyRedef :: (MonadCError m) => IdentEntry -> (DeclarationStatus IdentEntry) -> m ()
-checkIdentTyRedef (Right decl) status = checkVarRedef decl status
-checkIdentTyRedef (Left tydef) (KindMismatch old_def) =
+_checkIdentTyRedef :: (MonadCError m) => IdentEntry -> (DeclarationStatus IdentEntry) -> m ()
+_checkIdentTyRedef (Right decl) status = checkVarRedef decl status
+_checkIdentTyRedef (Left tydef) (KindMismatch old_def) =
   redefErr (identOfTypeDef tydef) LevelError tydef old_def DiffKindRedecl
-checkIdentTyRedef (Left tydef) (Redeclared old_def) =
+_checkIdentTyRedef (Left tydef) (Redeclared old_def) =
   redefErr (identOfTypeDef tydef) LevelError tydef old_def DuplicateDef
-checkIdentTyRedef (Left _tydef) _ = return ()
+_checkIdentTyRedef (Left _tydef) _ = return ()
 
 -- Check whether it is ok to declare a variable already in scope
 checkVarRedef :: (MonadCError m) => IdentDecl -> (DeclarationStatus IdentEntry) -> m ()

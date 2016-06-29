@@ -33,12 +33,12 @@ prettyAssocs :: (Pretty k, Pretty v) => String -> [(k,v)] -> Doc
 prettyAssocs label = prettyAssocsWith label pretty pretty
 prettyAssocsWith :: String -> (k -> Doc) -> (v -> Doc) -> [(k,v)] -> Doc
 prettyAssocsWith label prettyKey prettyVal theMap =
-    text label $$ (nest 8) (vcat $ map prettyEntry theMap)
+    text label $$ nest 8 (vcat $ map prettyEntry theMap)
     where
     prettyEntry (k,v) = prettyKey k <+> text " ~> " <+> prettyVal v
 
 instance Pretty DefTable where
-    pretty dt = text "DefTable" $$ (nest 4 $ vcat defMaps)
+    pretty dt = text "DefTable" $$ nest 4 (vcat defMaps)
         where
         defMaps = [ prettyNSMap "idents" identDecls
                   , prettyNSMap "tags" tagDecls

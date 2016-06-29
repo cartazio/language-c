@@ -79,7 +79,7 @@ prettyUsingInclude :: CTranslUnit -> Doc
 prettyUsingInclude (CTranslUnit edecls _) =
   includeWarning headerFiles
     $$
-  (vcat $ map (either includeHeader pretty) mappedDecls)
+  vcat (map (either includeHeader pretty) mappedDecls)
   where
     (headerFiles,mappedDecls) = foldr (addDecl . tagIncludedDecls) (Set.empty,[]) edecls
     tagIncludedDecls edecl | maybe False isHeaderFile (fileOfNode edecl) = Left ((posFile . posOf) edecl)
@@ -104,7 +104,7 @@ instance Pretty CFunDef where
     pretty (CFunDef declspecs declr decls stat _) =          -- Example:
             hsep (map pretty declspecs)                      -- __attribute__((noreturn)) static long
         <+> pretty declr                                     -- foo(b)
-        $+$ (ii . vcat . map (<> semi) . map pretty) decls   --     register long b;
+        $+$ (ii . vcat . map ((<> semi) . pretty)) decls     --     register long b;
         $$ prettyPrec (-1) stat                              -- {  ...
                                                              -- }
 
@@ -203,12 +203,12 @@ instance Pretty CDecl where
                 attrlistP (getAttrs declr) <+>
                 maybeP ((text "=" <+>) . pretty) initializer
             checked_specs =
-                case any isAttrAfterSUE  (zip specs (tail specs)) of
-                    True -> trace
-                              ("Warning: AST Invariant violated: __attribute__ specifier following struct/union/enum:"++
-                               (show $ map pretty specs))
-                            specs
-                    False -> specs
+                if any isAttrAfterSUE  (zip specs (tail specs))
+                    then trace
+                           ("Warning: AST Invariant violated: __attribute__ specifier following struct/union/enum:" ++
+                            show (map pretty specs))
+                           specs
+                    else specs
             isAttrAfterSUE (CTypeSpec ty,CTypeQual (CAttrQual _)) = isSUEDef ty
             isAttrAfterSUE _ = False
             getAttrs Nothing = []
@@ -279,7 +279,7 @@ instance Pretty CStructUnion where
         pretty tag <+> attrlistP cattrs <+> maybeP identP ident <+> text "{ }"
     pretty (CStruct tag ident (Just decls) cattrs _) = vcat [
         pretty tag <+> attrlistP cattrs <+> maybeP identP ident <+> text "{",
-        ii $ sep (map (<> semi) (map pretty decls)),
+        ii $ sep (map ((<> semi) . pretty) decls),
         text "}"]
 
 instance Pretty CStructTag where
@@ -450,16 +450,17 @@ instance Pretty CExpr where
 instance Pretty CBuiltin where
     pretty (CBuiltinVaArg expr ty_name _) =
         text "__builtin_va_arg" <+>
-        (parens $ pretty expr <> comma <+> pretty ty_name)
+        parens (pretty expr <> comma <+> pretty ty_name)
     -- The first desig has to be a member field.
     pretty (CBuiltinOffsetOf ty_name (CMemberDesig field1 _ : desigs) _) =
         text "__builtin_offsetof" <+>
-        (parens $ pretty ty_name <> comma <+> identP field1 <> hcat (map pretty desigs) )
+        parens (pretty ty_name <> comma <+> identP field1 <> hcat (map pretty desigs) )
     pretty (CBuiltinOffsetOf _ty_name otherDesigs _) =
-        error $ "Inconsistent AST: Cannot interpret designators in offsetOf: "++ show (hcat$ map pretty otherDesigs)
+        error $ "Inconsistent AST: Cannot interpret designators in offsetOf: " ++
+                show (hcat $ map pretty otherDesigs)
     pretty (CBuiltinTypesCompatible ty1 ty2 _) =
         text "__builtin_types_compatible_p" <+>
-        (parens $ pretty ty1 <> comma <+> pretty ty2)
+        parens (pretty ty1 <> comma <+> pretty ty2)
 
 instance Pretty CAssignOp where
   pretty op = text $ case op of

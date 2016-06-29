@@ -50,8 +50,6 @@ instance Show Position where
   show BuiltinPosition          = "<builtin>"
   show InternalPosition         = "<internal>"
 
-{-# DEPRECATED posColumn "column number information is inaccurate in presence of macros - do not rely on it." #-}
-
 -- | @position absoluteOffset fileName lineNumber columnNumber@ initializes a @Position@ using the given arguments
 position :: Int -> String -> Int -> Int -> Position
 position = Position

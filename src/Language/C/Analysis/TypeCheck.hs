@@ -105,7 +105,7 @@ constType (CStrConst (CString chars wide) ni) =
 
 -- | Determine whether two types are compatible.
 compatible :: Type -> Type -> Either String ()
-compatible t1 t2 = compositeType t1 t2 >> return ()
+compatible t1 t2 = void$ compositeType t1 t2
 
 -- | Determine the composite type of two compatible types.
 compositeType :: Type -> Type -> Either String Type
@@ -178,7 +178,7 @@ compositeType (FunctionType ft1 attrs1) (FunctionType ft2 attrs2) =
     (FunType rt1 args1 varargs1, FunType rt2 args2 varargs2) ->
       do {- when (length args1 /= length args2) $
               fail "different numbers of arguments in function types" -}
-         args <- mapM (uncurry compositeParamDecl) (zip args1 args2)
+         args <- zipWithM compositeParamDecl args1 args2
          when (varargs1 /= varargs2) $
               fail "incompatible varargs declarations"
          doFunType rt1 rt2 args varargs1
@@ -282,7 +282,7 @@ assignCompatible CAssignOp t1 t2 =
       | otherwise -> fail $ "incompatible direct types in assignment: "
                      ++ pType t1 ++ ", " ++ pType t2
     (t1', t2') -> compatible t1' t2'
-assignCompatible op t1 t2 = binopType (assignBinop op) t1 t2 >> return ()
+assignCompatible op t1 t2 = void$ binopType (assignBinop op) t1 t2
 
 -- | Determine the type of a binary operation.
 binopType :: CBinaryOp -> Type -> Type -> Either String Type

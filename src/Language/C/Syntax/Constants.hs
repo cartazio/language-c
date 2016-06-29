@@ -41,7 +41,7 @@ data CChar = CChar
 
 instance Show CChar where
     showsPrec _ (CChar c wideflag)   = _showWideFlag wideflag . showCharConst c
-    showsPrec _ (CChars cs wideflag) = _showWideFlag wideflag . (sQuote $ concatMap escapeCChar cs)
+    showsPrec _ (CChars cs wideflag) = _showWideFlag wideflag . sQuote (concatMap escapeCChar cs)
 
 -- | @showCharConst c@ prepends _a_ String representing the C char constant corresponding to @c@.
 -- If necessary uses octal or hexadecimal escape sequences.
@@ -52,7 +52,7 @@ _showWideFlag :: Bool -> ShowS
 _showWideFlag flag = if flag then showString "L" else id
 
 -- | get the haskell representation of a char constant
-getCChar :: CChar -> [Char]
+getCChar :: CChar -> String
 getCChar (CChar  c _)   = [c]
 getCChar (CChars  cs _) = cs
 
@@ -77,7 +77,7 @@ cChar_w :: Char -> CChar
 cChar_w c = CChar c True
 
 -- | create a multi-character character constant
-cChars :: [Char] -> Bool -> CChar
+cChars :: String -> Bool -> CChar
 cChars = CChars
 
 -- | datatype for memorizing the representation of an integer
@@ -153,7 +153,7 @@ readCFloat = CFloat
 
 -- | C String literals
 data CString = CString
-                [Char]    -- characters
+                String    -- characters
                 Bool      -- wide flag
                 deriving (Eq,Ord,Data,Typeable)
 instance Show CString where

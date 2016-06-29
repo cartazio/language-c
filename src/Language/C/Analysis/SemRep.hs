@@ -57,6 +57,7 @@ import Language.C.Data
 import Language.C.Syntax
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe
 import Data.Generics
 
 -- | accessor class : struct\/union\/enum names
@@ -219,7 +220,7 @@ instance Declaration ObjDef where
 
 -- | Returns @True@ if the given object definition is tentative.
 isTentative :: ObjDef -> Bool
-isTentative (ObjDef decl init_opt _) | isExtDecl decl = maybe True (const False) init_opt
+isTentative (ObjDef decl init_opt _) | isExtDecl decl = isNothing init_opt
                                      | otherwise = False
 
 -- | Function definitions

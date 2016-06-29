@@ -113,9 +113,9 @@ analyseDecl _is_local (CStaticAssert _expr _strlit _annot) = return () -- TODO
 analyseDecl is_local decl@(CDecl declspecs declrs node)
     | null declrs =
         case typedef_spec of Just _  -> astError node "bad typedef declaration: missing declarator"
-                             Nothing -> analyseTypeDecl decl >> return ()
+                             Nothing -> void$ analyseTypeDecl decl
     | (Just declspecs') <- typedef_spec = mapM_ (uncurry (analyseTyDef declspecs')) declr_list
-    | otherwise   = do let (storage_specs, attrs, typequals, typespecs, funspecs, alignspecs) =
+    | otherwise   = do let (storage_specs, attrs, typequals, typespecs, funspecs, _alignspecs) =
                              partitionDeclSpecs declspecs
                        canonTySpecs <- canonicalTypeSpec typespecs
                        -- TODO: alignspecs not yet processed
@@ -218,7 +218,7 @@ extFunProto (VarDeclInfo var_name fun_spec storage_spec attrs ty node_info) =
 -- We have to check the storage specifiers here, as they determine wheter we're dealing with decalartions
 -- or definitions
 -- see [http://www.sivity.net/projects/language.c/wiki/ExternalDefinitions]
-extVarDecl :: (MonadTrav m) => VarDeclInfo -> (Maybe Initializer) -> m ()
+extVarDecl :: (MonadTrav m) => VarDeclInfo -> Maybe Initializer -> m ()
 extVarDecl (VarDeclInfo var_name fun_spec storage_spec attrs typ node_info) init_opt =
     do when (isNoName var_name) $ astError node_info "NoName in extVarDecl"
        (storage,is_def) <- globalStorage storage_spec
@@ -228,7 +228,7 @@ extVarDecl (VarDeclInfo var_name fun_spec storage_spec attrs typ node_info) init
            else handleVarDecl False $ Decl vardecl node_info
     where
        ident = identOfVarName var_name
-       globalStorage _ | (fun_spec /= noFunctionAttrs) =
+       globalStorage _ | fun_spec /= noFunctionAttrs =
                            astError node_info "invalid function specifier for external variable"
        globalStorage AutoSpec      = astError node_info "file-scope declaration specifies storage `auto'"
        globalStorage RegSpec       =
@@ -259,7 +259,7 @@ extVarDecl (VarDeclInfo var_name fun_spec storage_spec attrs typ node_info) init
 
 -- | handle a function-scope object declaration \/ definition
 -- see [http://www.sivity.net/projects/language.c/wiki/LocalDefinitions]
-localVarDecl :: (MonadTrav m) => VarDeclInfo -> (Maybe Initializer) -> m ()
+localVarDecl :: (MonadTrav m) => VarDeclInfo -> Maybe Initializer -> m ()
 localVarDecl (VarDeclInfo var_name fun_attrs storage_spec attrs typ node_info) init_opt =
     do when (isNoName var_name) $ astError node_info "NoName in localVarDecl"
        (storage,is_def) <- localStorage storage_spec
@@ -340,7 +340,7 @@ tStmt c (CCompound ls body _)    =
      return t
 tStmt c (CIf e sthen selse _)    =
   checkGuard c e >> tStmt c sthen
-                 >> maybe (return ()) (\s -> tStmt c s >> return ()) selse
+                 >> maybe (return ()) (void . tStmt c) selse
                  >> return voidType
 tStmt c (CSwitch e s ni)         =
   tExpr c RValue e >>= checkIntegral' ni >>
@@ -397,7 +397,7 @@ tStmt c (CFor i g inc s _)       =
      _ <- tStmt (LoopCtx : c) s
      leaveBlockScope
      return voidType
-  where checkExpr e = tExpr c RValue e >> return ()
+  where checkExpr e = void$ tExpr c RValue e
 tStmt c (CGotoPtr e ni)          =
   do t <- tExpr c RValue e
      case t of
@@ -572,20 +572,20 @@ tExpr' ctx side (CGenericSelection expr list ni) = do
   ty_list <- mapM analyseAssoc list
   def_expr_ty <-
     case dropWhile (isJust . fst) ty_list of
-      [(Nothing,tExpr')] -> return $ Just tExpr'
-      [] -> return $ Nothing
+      [(Nothing,tExpr'')] -> return (Just tExpr'')
+      [] -> return Nothing
       _ -> astError ni "more than one default clause in generic selection"
   case dropWhile (maybe True (not . typesMatch ty_sel) . fst) ty_list of
-    ((_,expr_ty) : _ ) -> return $ expr_ty
+    ((_,expr_ty) : _ ) -> return expr_ty
     [] -> case def_expr_ty of
-      (Just expr_ty) -> return $ expr_ty
+      (Just expr_ty) -> return expr_ty
       Nothing -> astError ni ("no clause matches for generic selection (not fully supported) - selector type is " ++ show (pretty ty_sel) ++
                               ", available types are " ++ show (map (pretty.fromJust.fst) (filter (isJust.fst) ty_list)))
   where
     analyseAssoc (mdecl,expr') = do
       tDecl <- mapM analyseTypeDecl mdecl
-      tExpr' <- tExpr ctx side expr'
-      return (tDecl, tExpr')
+      tExpr'' <- tExpr ctx side expr'
+      return (tDecl, tExpr'')
     typesMatch (DirectType tn1 _ _) (DirectType tn2 _ _) = directTypesMatch tn1 tn2
     typesMatch _ _ = False -- not fully supported
     directTypesMatch TyVoid TyVoid = True
@@ -637,8 +637,8 @@ tExpr' c _ (CCall fe args ni)          =
        _  -> typeError ni $ "attempt to call non-function of type " ++ pType t
   where checkArg (pty, aty, arg) =
           do attrs <- deepTypeAttrs pty
-             case isTransparentUnion attrs of
-               True ->
+             if isTransparentUnion attrs
+               then
                  case canonicalType pty of
                    DirectType (TyComp ctr) _ _ ->
                      do td <- lookupSUE (nodeInfo arg) (sueRef ctr)
@@ -658,7 +658,8 @@ tExpr' c _ (CCall fe args ni)          =
                      --             )
                    _ -> astError (nodeInfo arg)
                         "non-composite has __transparent_union__ attribute"
-               False -> assignCompatible' (nodeInfo arg) CAssignOp pty aty
+               else
+                 assignCompatible' (nodeInfo arg) CAssignOp pty aty
         isTransparentUnion =
           any (\(Attr n _ _) -> identToString n == "__transparent_union__")
 tExpr' c _ (CAssign op le re ni)       =
@@ -694,7 +695,7 @@ tInitList ni t@(DirectType (TyComp ctr) _ _) initList =
      checkInits t default_ds initList
 tInitList _ (PtrType (DirectType TyVoid _ _) _ _ ) _ =
           return () -- XXX: more checking
-tInitList _ t [([], i)] = tInit t i >> return ()
+tInitList _ t [([], i)] = void$ tInit t i
 tInitList ni t _ = typeError ni $ "initializer list for type: " ++ pType t
 
 checkInits :: MonadTrav m => Type -> [CDesignator] -> CInitList -> m ()

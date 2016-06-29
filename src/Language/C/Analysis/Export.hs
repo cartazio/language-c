@@ -69,8 +69,8 @@ exportType ty = exportTy [] ty
         let fun_declr = CFunDeclr (Right ([],False)) (exportAttrs attrs) ni
         in  exportTy (fun_declr : dd) ity
     exportTy dd (TypeDefType (TypeDefRef ty_ident _ node) quals attrs) =
-        let declspecs =    [CTypeSpec (CTypeDef ty_ident node)]
-                        ++ map CTypeQual (exportTypeQualsAttrs quals attrs)
+        let declspecs =   CTypeSpec (CTypeDef ty_ident node)
+                        : map CTypeQual (exportTypeQualsAttrs quals attrs)
         in (declspecs, reverse dd)
     exportTy dd (DirectType ity quals attrs) =
         let declspecs =    map CTypeQual (exportTypeQualsAttrs quals attrs)
@@ -188,8 +188,8 @@ exportParamDecl paramdecl =
 
 exportDeclAttrs :: DeclAttrs -> [CDeclSpec]
 exportDeclAttrs (DeclAttrs fun_attrs storage attrs) =
-       map (CFunSpec) (exportFunAttrs fun_attrs)
-    ++ map (CStorageSpec) (exportStorage storage)
+       map CFunSpec (exportFunAttrs fun_attrs)
+    ++ map CStorageSpec (exportStorage storage)
     ++ map (CTypeQual . CAttrQual) (exportAttrs attrs)
 
 -- | export function attributes to C function specifiers
