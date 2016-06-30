@@ -9,15 +9,15 @@ TESTS=analysis_enum \
       bug20160314_noreturn
 
 #bug20140111_utf8
-all: tests | prepare
+all: tests
 tests:  $(TESTS:=.runtest)
 prepare: compile_examples compile_test
 compile_examples:
-	make -C ../../examples clean all
+	make -C ../../examples
 compile_test:
 	make -C ../
 clean: $(TESTS:=.runclean)
-%.runtest:
+%.runtest: | prepare
 	make -C $* clean all
 %.runclean:
 	make -C $* clean

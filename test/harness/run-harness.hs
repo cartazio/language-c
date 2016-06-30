@@ -9,15 +9,14 @@ import System.Process (readProcessWithExitCode, callProcess)
 import System.IO (hPutStrLn, hPrint, stderr)
 import Control.Monad (filterM, liftM)
 
-testDir :: String
-testDir = "test/harness"
+testDirs :: [String]
+testDirs = ["test/harness","harness","."]
 
-getActualTestDirectory :: String -> IO FilePath
-getActualTestDirectory testdir = do
-  let candidates =  [ testdir, "." ]
-  validDirs <- filterM (doesFileExist . (</> "run-harness.hs")) candidates
+getActualTestDirectory :: [String] -> IO FilePath
+getActualTestDirectory test_dirs = do
+  validDirs <- filterM (doesFileExist . (</> "run-harness.hs")) test_dirs
   case validDirs of
-    []    -> ioError (userError ("run-harness.hs not found in " ++ intercalate " or " candidates))
+    []    -> ioError (userError ("run-harness.hs not found in " ++ intercalate " or " test_dirs))
     (d:_) -> return d
 
 subdirectoriesOf :: FilePath -> IO [FilePath]
@@ -36,7 +35,7 @@ findM p (x:xs) = do guard <- p x ; if guard then (return $ Just x) else (findM p
 
 main :: IO ExitCode
 main = do
-  actual_test_dir <- getActualTestDirectory testDir
+  actual_test_dir <- getActualTestDirectory testDirs
   tests <- subdirectoriesOf actual_test_dir
   cdir <- getCurrentDirectory
   hPutStrLn stderr ("Changing to test directory " ++ actual_test_dir ++ " and compiling")
