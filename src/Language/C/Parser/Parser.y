@@ -1216,10 +1216,10 @@ enumerator_list
 
 enumerator :: { (Ident, Maybe CExpr) }
 enumerator
-  : identifier                              { ($1, Nothing) }
-  | identifier attr                         { ($1, Nothing) }
-  | identifier attr '=' constant_expression { ($1, Just $4) }
-  | identifier '=' constant_expression      { ($1, Just $3) }
+  : identifier                               { ($1, Nothing) }
+  | identifier attrs                         { ($1, Nothing) }
+  | identifier attrs '=' constant_expression { ($1, Just $4) }
+  | identifier '=' constant_expression       { ($1, Just $3) }
 
 
 -- parse C type qualifier (C11 6.7.3)
