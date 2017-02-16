@@ -296,8 +296,9 @@ binopType op t1 t2 =
           (DirectType tn1 _ _, DirectType tn2 _ _) ->
                 case arithmeticConversion tn1 tn2 of
                   Just _ -> return boolType
-                  Nothing -> fail
-                             "incompatible arithmetic types in comparison"
+                  Nothing -> fail $ render $
+                             text "incompatible arithmetic types in comparison: "
+                             <+> pretty t1 <+> text "and" <+> pretty t2
           (PtrType (DirectType TyVoid _ _) _ _, _)
             | isPointerType t2' -> return boolType
           (_, PtrType (DirectType TyVoid _ _) _ _)
