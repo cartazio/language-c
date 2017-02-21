@@ -128,8 +128,7 @@ isScalarType t = isIntegralType t || isPointerType t || isFloatingType t
 --   Result is undefined in the presence of undefined typeDefs
 isFunctionType :: Type -> Bool
 isFunctionType ty =
-    case ty of  TypeDefType (TypeDefRef _ (Just actual_ty) _) _ _ -> isFunctionType actual_ty
-                TypeDefType _ _ _ -> error "isFunctionType: unresolved typeDef"
+    case ty of  TypeDefType (TypeDefRef _ actual_ty _) _ _ -> isFunctionType actual_ty
                 FunctionType _ _ -> True
                 _ -> False
 
@@ -139,8 +138,7 @@ typeQuals (DirectType _ q _) = q
 typeQuals (PtrType _ q _) = q
 typeQuals (ArrayType _ _ q _) = q
 typeQuals (FunctionType _ _) = noTypeQuals
-typeQuals (TypeDefType (TypeDefRef _ Nothing _)  q _) = q
-typeQuals (TypeDefType (TypeDefRef _ (Just t) _) q _) = mergeTypeQuals q (typeQuals t)
+typeQuals (TypeDefType (TypeDefRef _ t _) q _) = mergeTypeQuals q (typeQuals t)
 
 --  |Update type qualifiers
 --   For function types, it is an error to change any type qualifiers
@@ -159,8 +157,7 @@ typeAttrs (DirectType _ _ a) = a
 typeAttrs (PtrType _ _ a) = a
 typeAttrs (ArrayType _ _ _ a) = a
 typeAttrs (FunctionType _ a) = a
-typeAttrs (TypeDefType (TypeDefRef _ Nothing _) _ a) = a
-typeAttrs (TypeDefType (TypeDefRef _ (Just t) _) _ a) = mergeAttributes a (typeAttrs t)
+typeAttrs (TypeDefType (TypeDefRef _ t _) _ a) = mergeAttributes a (typeAttrs t)
 
 --  |Update type attributes
 typeAttrsUpd :: (Attributes -> Attributes) -> Type -> Type
@@ -181,7 +178,7 @@ baseType _ = error "base of non-pointer type"
 
 -- | resolve typedefs, if possible
 derefTypeDef :: Type -> Type
-derefTypeDef (TypeDefType (TypeDefRef _ (Just t) _) q a) =
+derefTypeDef (TypeDefType (TypeDefRef _ t _) q a) =
   (typeAttrsUpd (mergeAttributes a) . typeQualsUpd (mergeTypeQuals q))
   (derefTypeDef t)
 derefTypeDef ty = ty
@@ -199,7 +196,7 @@ deepDerefTypeDef (FunctionType (FunType rt params varargs) attrs) =
   FunctionType (FunType (deepDerefTypeDef rt) params varargs) attrs
 deepDerefTypeDef (FunctionType (FunTypeIncomplete rt) attrs) =
   FunctionType (FunTypeIncomplete (deepDerefTypeDef rt)) attrs
-deepDerefTypeDef (TypeDefType (TypeDefRef _ (Just t) _) q a) =
+deepDerefTypeDef (TypeDefType (TypeDefRef _ t _) q a) =
   (typeAttrsUpd (mergeAttributes a) . typeQualsUpd (mergeTypeQuals q))
   (deepDerefTypeDef t)
 deepDerefTypeDef t = t

@@ -165,14 +165,8 @@ compositeType t1 t2 | isPointerType t1 && isPointerType t2 =
      return (PtrType t quals attrs)
 compositeType (TypeDefType tdr1 q1 a1) (TypeDefType tdr2 q2 a2) =
   case (tdr1, tdr2) of
-    (TypeDefRef i1 Nothing _, TypeDefRef i2 _ _) -> doTypeDef i1 i2 tdr1
-    (TypeDefRef i1 _ _, TypeDefRef i2 Nothing _) -> doTypeDef i1 i2 tdr2
-    (TypeDefRef _ (Just t1) _, TypeDefRef _ (Just t2) _) ->
+    (TypeDefRef _ t1 _, TypeDefRef _ t2 _) ->
       compositeType t1 t2
-  where doTypeDef i1 i2 tdr =
-          do when (i1 /= i2) $ fail $ "incompatible typedef types: "
-                               ++ identToString i1 ++ ", " ++ identToString i2
-             return (TypeDefType tdr (mergeTypeQuals q1 q2) (mergeAttributes a1 a2))
 compositeType (FunctionType ft1 attrs1) (FunctionType ft2 attrs2) =
   case (ft1, ft2) of
     (FunType rt1 args1 varargs1, FunType rt2 args2 varargs2) ->

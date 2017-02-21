@@ -388,7 +388,7 @@ data BuiltinType = TyVaList
 
 -- | typdef references
 -- If the actual type is known, it is attached for convenience
-data TypeDefRef = TypeDefRef Ident (Maybe Type) NodeInfo
+data TypeDefRef = TypeDefRef Ident Type NodeInfo
                deriving (Typeable, Data {-! ,CNode !-})
 
 -- | integral types (C99 6.7.2.2)
