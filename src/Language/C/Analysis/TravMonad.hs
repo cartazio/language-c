@@ -64,6 +64,7 @@ import qualified Language.C.Analysis.DefTable as ST
 
 import Data.IntMap (insert)
 import Data.Maybe
+import Control.Applicative (Applicative(..))
 import Control.Monad (liftM, ap)
 import Prelude hiding (lookup)
 
