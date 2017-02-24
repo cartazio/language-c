@@ -45,10 +45,12 @@ import Language.C.Syntax.Utils
 import Text.PrettyPrint.HughesPJ
 
 
-import Control.Monad
-import Prelude hiding (reverse)
+import Prelude hiding (mapM, mapM_, reverse)
+import Control.Monad hiding (mapM, mapM_)
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.Traversable (mapM)
+import Data.Foldable (mapM_)
 
 -- * analysis
 
