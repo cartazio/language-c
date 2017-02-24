@@ -18,43 +18,67 @@ Category:       Language
 Executable CEquiv
    main-is: src/CEquiv.hs
    build-depends: base, filepath, mtl, pretty, language-c, language-c-test
-   ghc-options:    -rtsopts -Wall -Wno-redundant-constraints
+   if impl(ghc >= 8.0)
+     ghc-options:    -rtsopts -Wall -Wno-redundant-constraints
+   else
+     ghc-options:    -rtsopts -Wall
 
 Executable CParse
    main-is: src/CParse.hs
    build-depends: base, filepath, mtl, pretty, language-c, language-c-test
-   ghc-options:    -rtsopts -Wall -Wno-redundant-constraints
+   if impl(ghc >= 8.0)
+     ghc-options:    -rtsopts -Wall -Wno-redundant-constraints
+   else
+     ghc-options:    -rtsopts -Wall
 
 Executable CTest
    main-is: src/CTest.hs
    build-depends: base, filepath, mtl, pretty, syb, language-c, language-c-test
-   ghc-options:    -rtsopts -Wall -Wno-redundant-constraints
+   if impl(ghc >= 8.0)
+     ghc-options:    -rtsopts -Wall -Wno-redundant-constraints
+   else
+     ghc-options:    -rtsopts -Wall
 
 Executable CRoundTrip
    main-is: src/CRoundTrip.hs
    build-depends: base, filepath, mtl, pretty, language-c, language-c-test
-   ghc-options:    -rtsopts -Wall -Wno-redundant-constraints
+   if impl(ghc >= 8.0)
+     ghc-options:    -rtsopts -Wall -Wno-redundant-constraints
+   else
+     ghc-options:    -rtsopts -Wall
 
 Executable CheckGccArgs
    main-is: src/CheckGccArgs.hs
    build-depends: base, filepath, mtl, pretty, language-c, language-c-test
-   ghc-options:    -rtsopts -Wall -Wno-redundant-constraints
+   if impl(ghc >= 8.0)
+     ghc-options:    -rtsopts -Wall -Wno-redundant-constraints
+   else
+     ghc-options:    -rtsopts -Wall
 
 Executable RenderTests
    main-is: src/RenderTests.hs
    build-depends: base, filepath, mtl, pretty, containers, directory, xhtml, language-c, language-c-test
-   ghc-options:    -rtsopts -Wall -Wno-redundant-constraints
+   if impl(ghc >= 8.0)
+     ghc-options:    -rtsopts -Wall -Wno-redundant-constraints
+   else
+     ghc-options:    -rtsopts -Wall
 
 Executable ReportFatal
    main-is: src/ReportFatal.hs
    build-depends: base, filepath, mtl, pretty, language-c, language-c-test
-   ghc-options:    -rtsopts -Wall -Wno-redundant-constraints
+   if impl(ghc >= 8.0)
+     ghc-options:    -rtsopts -Wall -Wno-redundant-constraints
+   else
+     ghc-options:    -rtsopts -Wall
 
 Library
     Extensions: CPP, DeriveDataTypeable, PatternGuards, BangPatterns, ExistentialQuantification, GeneralizedNewtypeDeriving, ScopedTypeVariables
     Build-Depends: base >= 3 && < 5, process, directory, array, containers, pretty, filepath, bytestring >= 0.9.0, syb, mtl, language-c >= 0.5.1
     Hs-Source-Dirs: src
-    ghc-options:    -rtsopts -Wall -Wno-redundant-constraints
+    if impl(ghc >= 8.0)
+      ghc-options:    -rtsopts -Wall -Wno-redundant-constraints
+    else
+      ghc-options:    -rtsopts -Wall
     Exposed-Modules:
                     Language.C.Test.Environment
                     Language.C.Test.Framework
