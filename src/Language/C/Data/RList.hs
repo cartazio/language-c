@@ -30,7 +30,7 @@ singleton x = Reversed [x]
 
 snoc :: Reversed [a] -> a -> Reversed [a]
 snoc (Reversed xs) x = Reversed (x : xs)
-infixr 5 `snoc`
+infixl 5 `snoc`
 
 rappend :: Reversed [a] -> [a] -> Reversed [a]
 rappend (Reversed xs) ys = Reversed (List.reverse ys ++ xs)

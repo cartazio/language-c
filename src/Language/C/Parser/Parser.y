@@ -108,7 +108,7 @@ import qualified Data.List as List
 import Control.Monad (mplus)
 import Language.C.Parser.Builtin   (builtinTypeNames)
 import Language.C.Parser.Lexer     (lexC, parseError)
-import Language.C.Parser.Tokens    (CToken(..), GnuCTok(..), posLenOfTok)
+import Language.C.Parser.Tokens    (CToken(..), GnuCTok(..), ClangCTok (..), posLenOfTok)
 import Language.C.Parser.ParserMonad (P, failP, execParser, getNewName, addTypedef, shadowTypedef, getCurrentPosition,
                                       enterScope, leaveScope, getLastToken, getSavedToken, ParseError(..))
 
@@ -245,6 +245,7 @@ tyident		{ CTokTyIdent _ $$ }		-- `typedef-name' identifier
 "__builtin_va_arg"		{ CTokGnuC GnuCVaArg    _ }
 "__builtin_offsetof"		{ CTokGnuC GnuCOffsetof _ }
 "__builtin_types_compatible_p"	{ CTokGnuC GnuCTyCompat _ }
+clangcversion   { CTokClangC _ (ClangCVersionTok $$) } -- Clang version literal
 
 %%
 
@@ -1216,10 +1217,10 @@ enumerator_list
 
 enumerator :: { (Ident, Maybe CExpr) }
 enumerator
-  : identifier                              { ($1, Nothing) }
-  | identifier attr                         { ($1, Nothing) }
-  | identifier attr '=' constant_expression { ($1, Just $4) }
-  | identifier '=' constant_expression      { ($1, Just $3) }
+  : identifier                               { ($1, Nothing) }
+  | identifier attrs                         { ($1, Nothing) }
+  | identifier attrs '=' constant_expression { ($1, Just $4) }
+  | identifier '=' constant_expression       { ($1, Just $3) }
 
 
 -- parse C type qualifier (C11 6.7.3)
@@ -2075,6 +2076,8 @@ string_literal_list
   : cstr			{ case $1 of CTokSLit _ s -> singleton s }
   | string_literal_list cstr	{ case $2 of CTokSLit _ s -> $1 `snoc` s }
 
+clang_version_literal :: { ClangCVersion }
+  : clangcversion       { $1 }
 
 identifier :: { Ident }
 identifier
@@ -2118,9 +2121,11 @@ attribute
 attribute_params :: { Reversed [CExpr] }
 attribute_params
   : constant_expression					              { singleton $1 }
+  | unary_expression assignment_operator clang_version_literal { Reversed [] }
   | unary_expression assignment_operator unary_expression { Reversed [] }
   | attribute_params ',' constant_expression	{ $1 `snoc` $3 }
   | attribute_params ',' unary_expression assignment_operator unary_expression { $1 }
+  | attribute_params ',' unary_expression assignment_operator clang_version_literal { $1 }
 
 {
 

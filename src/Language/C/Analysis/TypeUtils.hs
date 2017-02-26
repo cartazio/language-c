@@ -30,13 +30,17 @@ module Language.C.Analysis.TypeUtils (
     derefTypeDef,
     deepDerefTypeDef,
     canonicalType,
+    -- * Type comparisons
+    sameType,
     -- * Other utilities
     getIntType,
     getFloatType
 ) where
 
-import           Language.C.Analysis.SemRep
-import           Language.C.Syntax.Constants
+import Language.C.Analysis.SemRep
+import Language.C.Data.Node (CNode(..))
+import Language.C.Syntax.AST (CExpression (..), CConstant (..))
+import Language.C.Syntax.Constants
 
 -- | Constructor for a simple integral type.
 integral :: IntType -> Type
@@ -138,8 +142,7 @@ isScalarType t = isIntegralType t || isPointerType t || isFloatingType t
 --   Result is undefined in the presence of undefined typeDefs
 isFunctionType :: Type -> Bool
 isFunctionType ty =
-    case ty of  TypeDefType (TypeDefRef _ (Just actual_ty) _) _ _ -> isFunctionType actual_ty
-                TypeDefType _ _ _ -> error "isFunctionType: unresolved typeDef"
+    case ty of  TypeDefType (TypeDefRef _ actual_ty _) _ _ -> isFunctionType actual_ty
                 FunctionType _ _ -> True
                 _ -> False
 
@@ -149,8 +152,7 @@ typeQuals (DirectType _ q _) = q
 typeQuals (PtrType _ q _) = q
 typeQuals (ArrayType _ _ q _) = q
 typeQuals (FunctionType _ _) = noTypeQuals
-typeQuals (TypeDefType (TypeDefRef _ Nothing _)  q _) = q
-typeQuals (TypeDefType (TypeDefRef _ (Just t) _) q _) = mergeTypeQuals q (typeQuals t)
+typeQuals (TypeDefType (TypeDefRef _ t _) q _) = mergeTypeQuals q (typeQuals t)
 
 --  |Update type qualifiers
 --   For function types, it is an error to change any type qualifiers
@@ -169,8 +171,7 @@ typeAttrs (DirectType _ _ a) = a
 typeAttrs (PtrType _ _ a) = a
 typeAttrs (ArrayType _ _ _ a) = a
 typeAttrs (FunctionType _ a) = a
-typeAttrs (TypeDefType (TypeDefRef _ Nothing _) _ a) = a
-typeAttrs (TypeDefType (TypeDefRef _ (Just t) _) _ a) = mergeAttributes a (typeAttrs t)
+typeAttrs (TypeDefType (TypeDefRef _ t _) _ a) = mergeAttributes a (typeAttrs t)
 
 --  |Update type attributes
 typeAttrsUpd :: (Attributes -> Attributes) -> Type -> Type
@@ -191,7 +192,7 @@ baseType _                   = error "base of non-pointer type"
 
 -- | resolve typedefs, if possible
 derefTypeDef :: Type -> Type
-derefTypeDef (TypeDefType (TypeDefRef _ (Just t) _) q a) =
+derefTypeDef (TypeDefType (TypeDefRef _ t _) q a) =
   (typeAttrsUpd (mergeAttributes a) . typeQualsUpd (mergeTypeQuals q))
   (derefTypeDef t)
 derefTypeDef ty = ty
@@ -209,10 +210,104 @@ deepDerefTypeDef (FunctionType (FunType rt params varargs) attrs) =
   FunctionType (FunType (deepDerefTypeDef rt) params varargs) attrs
 deepDerefTypeDef (FunctionType (FunTypeIncomplete rt) attrs) =
   FunctionType (FunTypeIncomplete (deepDerefTypeDef rt)) attrs
-deepDerefTypeDef (TypeDefType (TypeDefRef _ (Just t) _) q a) =
+deepDerefTypeDef (TypeDefType (TypeDefRef _ t _) q a) =
   (typeAttrsUpd (mergeAttributes a) . typeQualsUpd (mergeTypeQuals q))
   (deepDerefTypeDef t)
 deepDerefTypeDef t = t
+
+-- | True iff Type is a variable length array or a derived type thereof.
+-- Variably modified types have function or block scope, so only some
+-- constructions are possible.
+isVariablyModifiedType :: Type -> Bool
+isVariablyModifiedType t =
+  case derefTypeDef t of
+    TypeDefType {} -> error "impossible: derefTypeDef t returned a TypeDefType"
+    DirectType {} -> False
+    PtrType t _ _ -> isVariablyModifiedType t
+    ArrayType _ sz _ _ -> isVariableArraySize sz
+    FunctionType {} -> False
+  where
+    isVariableArraySize :: ArraySize -> Bool
+    isVariableArraySize (UnknownArraySize isStarred) = isStarred
+    isVariableArraySize (ArraySize isStatic e) = isStatic || isConstantSize e
+
+    isConstantSize :: Expr -> Bool
+    isConstantSize (CConst (CIntConst {})) = True
+    isCosntantSize _ = False
+
+-- | Two types denote the same type if they are identical, ignoring type
+-- definitions, and neither is a variably modified type.
+sameType :: Type -> Type -> Bool
+sameType t1 t2 =
+  not (isVariablyModifiedType t1 || isVariablyModifiedType t2) && sameType' t1 t2
+  where
+    sameType' t1 t2 =
+      case (derefTypeDef t1, derefTypeDef t2) of
+        (TypeDefType {}, _) -> error "impossible: derefTypeDef t1 returned a TypeDefType"
+        (_, TypeDefType {}) -> error "impossible: derefTypeDef t2 returned a TypeDefType"
+        (DirectType tn1 q1 _a1, DirectType tn2 q2 _a2) ->
+          sameTypeName tn1 tn2 && sameQuals q1 q2 {- FIXME: same attributes? -}
+        (PtrType t1 q1 _a1, PtrType t2 q2 _a2) ->
+          sameType t1 t2 && sameQuals q1 q2
+        (ArrayType t1 sz1 q1 _a1, ArrayType t2 sz2 q2 _a2) ->
+          sameType t1 t2 && sameArraySize sz1 sz2 && sameQuals q1 q2
+        (FunctionType ft1 _a1, FunctionType ft2 _a2) ->
+          sameFunType ft1 ft2
+        _ -> False
+
+sameTypeName :: TypeName -> TypeName -> Bool
+sameTypeName t1 t2 =
+  case (t1, t2) of
+    (TyVoid, TyVoid) -> True
+    (TyIntegral i1, TyIntegral i2) -> i1 == i2
+    (TyFloating f1, TyFloating f2) -> f1 == f2
+    (TyComplex f1, TyComplex f2) -> f1 == f2
+    (TyComp ctr1, TyComp ctr2) -> sameCompTypeRef ctr1 ctr2
+    (TyEnum etr1, TyEnum etr2) -> sameEnumTypeRef etr1 etr2
+    (TyBuiltin b1, TyBuiltin b2) -> sameBuiltinType b1 b2
+    _ -> False
+
+sameBuiltinType :: BuiltinType -> BuiltinType -> Bool
+sameBuiltinType TyVaList TyVaList = True
+sameBuiltinType TyAny TyAny = False {- what does TyAny mean? -}
+sameBuiltinType _ _ = False
+
+sameCompTypeRef :: CompTypeRef -> CompTypeRef -> Bool
+sameCompTypeRef (CompTypeRef sue1 kind1 _) (CompTypeRef sue2 kind2 _) =
+  sue1 == sue2 && kind1 == kind2
+
+sameEnumTypeRef :: EnumTypeRef -> EnumTypeRef -> Bool
+sameEnumTypeRef (EnumTypeRef sue1 _) (EnumTypeRef sue2 _) = sue1 == sue2
+
+sameFunType :: FunType -> FunType -> Bool
+sameFunType (FunType rt1 params1 isVar1) (FunType rt2 params2 isVar2) =
+  sameType rt1 rt2 && sameParamDecls params1 params2 && isVar1 == isVar2
+  where
+    sameParamDecls :: [ParamDecl] -> [ParamDecl] -> Bool
+    sameParamDecls params1 params2 =
+      length params1 == length params2
+      && and (zipWith sameParamDecl params1 params2)
+    -- ignores param identifiers, just compares types
+    sameParamDecl :: ParamDecl -> ParamDecl -> Bool
+    sameParamDecl p1 p2 = sameType (declType p1) (declType p2)
+sameFunType (FunTypeIncomplete rt1) (FunTypeIncomplete rt2) =
+  sameType rt1 rt2
+
+-- | Returns 'True' iff both array sizes denote the same size.  Assumes that
+-- neither array type was a variably modified type.
+sameArraySize :: ArraySize -> ArraySize -> Bool
+sameArraySize (UnknownArraySize isStar1) (UnknownArraySize isStar2) = isStar1 == isStar2
+sameArraySize (ArraySize s1 e1) (ArraySize s2 e2) = s1 == s2 && sizeEqual e1 e2
+  where
+    -- FIXME: Do something better, and combine with sizeEqual in Language.C.Analysis.TypeCheck
+    sizeEqual :: Expr -> Expr -> Bool
+    sizeEqual (CConst (CIntConst i1 _)) (CConst (CIntConst i2 _)) = i1 == i2
+    sizeEqual e1 e2 = nodeInfo e1 == nodeInfo e2
+
+sameQuals :: TypeQuals -> TypeQuals -> Bool
+sameQuals (TypeQuals {constant = c1, volatile = v1, restrict = r1})
+          (TypeQuals {constant = c2, volatile = v2, restrict = r2}) =
+  c1 == c2 && v1 == v2 && r1 == r2
 
 canonicalType :: Type -> Type
 canonicalType t =

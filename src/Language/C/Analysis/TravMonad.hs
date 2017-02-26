@@ -58,12 +58,14 @@ import Language.C.Data.RList as RList
 import Language.C.Analysis.Builtins
 import Language.C.Analysis.SemError
 import Language.C.Analysis.SemRep
+import Language.C.Analysis.TypeUtils (sameType)
 import Language.C.Analysis.DefTable hiding (enterBlockScope,leaveBlockScope,
                                             enterFunctionScope,leaveFunctionScope)
 import qualified Language.C.Analysis.DefTable as ST
 
 import Data.IntMap (insert)
 import Data.Maybe
+import Control.Applicative (Applicative(..))
 import Control.Monad (liftM, ap)
 import Prelude hiding (lookup)
 
@@ -136,9 +138,16 @@ handleEnumeratorDef enumerator = do
     return ()
 
 handleTypeDef :: (MonadTrav m) => TypeDef -> m ()
-handleTypeDef typeDef@(TypeDef ident _ _ _) = do
+handleTypeDef typeDef@(TypeDef ident t1 _ _) = do
     redecl <- withDefTable $ defineTypeDef ident typeDef
-    checkRedef (show ident) typeDef redecl
+    -- C11 6.7/3 If an identifier has no linkage, there shall be no more than
+    -- one declaration of the identifier (in a declarator or type specifier)
+    -- with the same scope and in the same name space, except that: a typedef
+    -- name may be redefined to denote the same type as it currently does,
+    -- provided that type is not a variably modified type;
+    case redecl of
+      Redeclared (Left (TypeDef _ t2 _ _)) | sameType t1 t2 -> return ()
+      _ -> checkRedef (show ident) typeDef redecl
     handleDecl (TypeDefEvent typeDef)
     return ()
 

@@ -64,6 +64,11 @@ gccParseCPPArgs args =
         case unparsed_args of
             ("-E":rest) -> mungeArgs parsed rest
 
+            (flag:flagArg:rest) | flag == "-MF"
+                                || flag == "-MT"
+                                || flag == "-MQ"
+                                -> mungeArgs (cpp_args,(extra,other `snoc` flag `snoc` flagArg)) rest
+
             (flag:rest) |  flag == "-c"
                         || flag == "-S"
                         || "-M" `isPrefixOf` flag
