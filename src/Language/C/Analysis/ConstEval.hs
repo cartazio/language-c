@@ -58,7 +58,7 @@ sizeofType md n (ArrayType bt (ArraySize _ sz) _ _) =
             astError (nodeInfo sz) $
             "array size is not a constant: " ++ (render . pretty) sz
             -}
-sizeofType md n (TypeDefType (TypeDefRef _ (Just t) _) _ _) = sizeofType md n t
+sizeofType md n (TypeDefType (TypeDefRef _ t _) _ _) = sizeofType md n t
 sizeofType md _ (FunctionType _ _) = return $ ptrSize md
 sizeofType _ n t = astError (nodeInfo n) $
                  "can't find size of type: " ++ (render . pretty) t
@@ -73,7 +73,7 @@ alignofType md _ (DirectType (TyBuiltin b) _ _) = return $ builtinAlign md b
 alignofType md _ (PtrType _ _ _)  = return $ ptrAlign md
 alignofType md _ (ArrayType _ (UnknownArraySize _) _ _) = return $ ptrAlign md
 alignofType md n (ArrayType bt (ArraySize _ _) _ _) = alignofType md n bt
-alignofType md n (TypeDefType (TypeDefRef _ (Just t) _) _ _) = alignofType md n t
+alignofType md n (TypeDefType (TypeDefRef _ t _) _ _) = alignofType md n t
 alignofType _ n t = astError (nodeInfo n) $
                  "can't find alignment of type: " ++ (render . pretty) t
 

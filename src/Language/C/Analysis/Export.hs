@@ -225,7 +225,7 @@ exportAttrs = map exportAttr where
 
 fromDirectType :: Type -> TypeName
 fromDirectType (DirectType ty _ _) = ty
-fromDirectType (TypeDefType (TypeDefRef _ ref _) _ _) = maybe (error "undefined typeDef") fromDirectType ref
+fromDirectType (TypeDefType (TypeDefRef _ ty _) _ _) = fromDirectType ty
 fromDirectType _ = error "fromDirectType"
 
 ni :: NodeInfo

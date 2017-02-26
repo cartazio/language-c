@@ -289,7 +289,7 @@ mergeTypeAttributes node_info quals attrs typ =
     merge quals' attrs' tyf = return $ tyf (mergeTypeQuals quals quals') (attrs' ++ attrs)
 
 typeDefRef :: (MonadCError m, MonadSymtab m) => NodeInfo -> Ident -> m TypeDefRef
-typeDefRef t_node name = lookupTypeDef name >>= \ty -> return (TypeDefRef name (Just ty) t_node)
+typeDefRef t_node name = lookupTypeDef name >>= \ty -> return (TypeDefRef name ty t_node)
 
 -- extract a struct\/union
 -- we emit @declStructUnion@ and @defStructUnion@ actions
