@@ -11,11 +11,11 @@
 --  C Tokens for the C lexer.
 --
 -----------------------------------------------------------------------------
-module Language.C.Parser.Tokens (CToken(..), posLenOfTok, GnuCTok(..)) where
+module Language.C.Parser.Tokens (CToken(..), posLenOfTok, GnuCTok(..), ClangCTok(..)) where
 
 import Language.C.Data.Position    (Position, Pos(..), PosLength)
 import Language.C.Data.Ident       (Ident, identToString)
-import Language.C.Syntax.Constants (CChar, CInteger, CFloat, CString)
+import Language.C.Syntax.Constants (CChar, CInteger, CFloat, CString, ClangCVersion)
 
 -- token definition
 -- ----------------
@@ -139,6 +139,7 @@ data CToken = CTokLParen   !PosLength            -- `('
               -- not generated here, but in `CParser.parseCHeader'
             | CTokTyIdent  !PosLength !Ident     -- `typedef-name' identifier
             | CTokGnuC !GnuCTok !PosLength       -- special GNU C tokens
+            | CTokClangC !PosLength !ClangCTok   -- special Clang C tokens
             | CTokEof                           -- end of file
 
 -- special tokens used in GNU C extensions to ANSI C
@@ -150,6 +151,8 @@ data GnuCTok = GnuCAttrTok              -- `__attribute__'
              | GnuCTyCompat             -- `__builtin_types_compatible_p'
              | GnuCComplexReal          -- `__real__'
              | GnuCComplexImag          -- `__imag__'
+
+data ClangCTok = ClangCVersionTok !ClangCVersion -- version constant from 'availability' attribute
 
 instance Pos CToken where
   posOf = fst . posLenOfTok
@@ -258,6 +261,7 @@ posLenOfTok (CTokSLit     pos _) = pos
 posLenOfTok (CTokIdent    pos _) = pos
 posLenOfTok (CTokTyIdent  pos _) = pos
 posLenOfTok (CTokGnuC   _ pos  ) = pos
+posLenOfTok (CTokClangC   pos _) = pos
 posLenOfTok CTokEof = error "tokenPos: Eof"
 
 instance Show CToken where
@@ -369,4 +373,5 @@ instance Show CToken where
   showsPrec _ (CTokGnuC GnuCVaArg    _) = showString "__builtin_va_arg"
   showsPrec _ (CTokGnuC GnuCOffsetof _) = showString "__builtin_offsetof"
   showsPrec _ (CTokGnuC GnuCTyCompat _) = showString "__builtin_types_compatible_p"
+  showsPrec _ (CTokClangC _ (ClangCVersionTok v)) = shows v
   showsPrec _ CTokEof = error "show CToken : CTokEof"

@@ -122,7 +122,8 @@ $infname  = . # [ \\ \" ]             -- valid character in a filename
 @floatsuffix    = [fFlL]
 @floatgnusuffix = @floatsuffix@gnusuffix?|@gnusuffix@floatsuffix?
 
-
+-- clang version literals with a major.minor.rev
+@clangversion = @intpart\.@intpart\.@intpart
 
 tokens :-
 
@@ -182,6 +183,9 @@ $digitNZ$digit*@intgnusuffix?   { token_plus CTokILit (readCInteger DecRepr) }
 L\'($inchar|@charesc)\' { token CTokCLit (cChar_w . fst . unescapeChar . tail . tail) }
 \'($inchar|@charesc){2,}\' { token CTokCLit (flip cChars False . unescapeMultiChars .tail) }
 L\'($inchar|@charesc){2,}\' { token CTokCLit (flip cChars True . unescapeMultiChars . tail . tail) }
+
+-- Clang version literals
+@clangversion           { token (\pos -> CTokClangC pos . ClangCVersionTok) readClangCVersion }
 
 -- float constants (follows K&R A2.5.3. C99 6.4.4.2)
 --

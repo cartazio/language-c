@@ -23,6 +23,8 @@ module Language.C.Syntax.Constants (
   cFloat,  CFloat(..), readCFloat,
   -- * C string literals
   cString, cString_w, CString(..), getCString, showStringLit, concatCStrings,
+  -- * Clang C version literals
+  ClangCVersion(..), readClangCVersion,
 )
 where
 import Data.Bits
@@ -150,6 +152,17 @@ cFloat = CFloat . show
 -- dummy implementation
 readCFloat :: String -> CFloat
 readCFloat = CFloat
+
+-- | Clang dotted version literal
+-- <https://clang.llvm.org/docs/AttributeReference.html#availability>
+data ClangCVersion = ClangCVersion
+                     !String
+                     deriving (Eq,Ord,Data,Typeable)
+instance Show ClangCVersion where
+  showsPrec _ (ClangCVersion internal) = showString internal
+
+readClangCVersion :: String -> ClangCVersion
+readClangCVersion = ClangCVersion
 
 -- | C String literals
 data CString = CString
