@@ -1,10 +1,10 @@
 module Language.C.Analysis.Builtins (builtins) where
 
-import           Language.C.Analysis.DefTable
-import           Language.C.Analysis.SemRep
-import           Language.C.Analysis.TypeUtils
-import           Language.C.Data.Ident
-import           Language.C.Data.Node
+import Language.C.Analysis.DefTable
+import Language.C.Analysis.SemRep
+import Language.C.Analysis.TypeUtils
+import Language.C.Data.Ident
+import Language.C.Data.Node
 
 builtins :: DefTable
 builtins = foldr doIdent (foldr doTypeDef emptyDefTable typedefs) idents
