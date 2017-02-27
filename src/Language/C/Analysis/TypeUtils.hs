@@ -3,6 +3,8 @@ module Language.C.Analysis.TypeUtils (
     integral,
     floating,
     simplePtr,
+    uint32_tType,
+    uint64_tType,
     size_tType,
     ptrDiffType,
     boolType,
@@ -56,6 +58,14 @@ simplePtr t = PtrType t noTypeQuals []
 constPtr :: Type -> Type
 constPtr t = PtrType t (noTypeQuals { constant = True }) []
 
+-- | The underlying type for @uint32_t@. For now, this is just @unsigned int@.
+uint32_tType :: Type
+uint32_tType = integral TyUInt
+
+-- | The underlying type for @uint64_t@. For now, this is just @unsigned long long@.
+uint64_tType :: Type
+uint64_tType = integral TyULLong
+
 -- | The type returned by sizeof (size_t). For now, this is just @int@.
 size_tType :: Type
 size_tType = integral TyInt
@@ -107,20 +117,20 @@ valistType  = DirectType (TyBuiltin TyVaList) noTypeQuals noAttributes
 isIntegralType :: Type -> Bool
 isIntegralType (DirectType (TyIntegral _) _ _) = True
 isIntegralType (DirectType (TyEnum _) _ _)     = True
-isIntegralType _                             = False
+isIntegralType _                               = False
 
 -- | Check whether a type is a floating-point numeric type. This
 --   function does not attempt to resolve @typedef@ types.
 isFloatingType :: Type -> Bool
 isFloatingType (DirectType (TyFloating _) _ _) = True
-isFloatingType _                             = False
+isFloatingType _                               = False
 
 -- | Check whether a type is an pointer type. This includes array
 --   types. This function does not attempt to resolve @typedef@ types.
 isPointerType :: Type -> Bool
-isPointerType (PtrType _ _ _) = True
+isPointerType (PtrType _ _ _)     = True
 isPointerType (ArrayType _ _ _ _) = True
-isPointerType _ = False
+isPointerType _                   = False
 
 -- | Check whether a type is a scalar type. Scalar types include
 --   arithmetic types and pointer types.
@@ -176,9 +186,9 @@ typeAttrsUpd f ty =
 --   to call this function with a type that is not in one of those two
 --   categories.
 baseType :: Type -> Type
-baseType (PtrType t _ _) = t
+baseType (PtrType t _ _)     = t
 baseType (ArrayType t _ _ _) = t
-baseType _ = error "base of non-pointer type"
+baseType _                   = error "base of non-pointer type"
 
 -- | resolve typedefs, if possible
 derefTypeDef :: Type -> Type
@@ -303,7 +313,7 @@ canonicalType :: Type -> Type
 canonicalType t =
   case deepDerefTypeDef t of
     FunctionType ft attrs -> simplePtr (FunctionType ft attrs)
-    t' -> t'
+    t'                    -> t'
 
 -- XXX: move to be with other flag functions
 testFlags :: Enum f => [f] -> Flags f -> Bool
