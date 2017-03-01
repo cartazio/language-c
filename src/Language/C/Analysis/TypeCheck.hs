@@ -2,7 +2,6 @@
 module Language.C.Analysis.TypeCheck where
 
 import Control.Monad
-import Data.Either
 import Data.Maybe
 import Language.C.Data.Ident
 import Language.C.Data.Node
@@ -11,12 +10,12 @@ import Language.C.Pretty
 import Language.C.Syntax.AST
 import Language.C.Syntax.Constants
 import Language.C.Syntax.Ops
-import Language.C.Analysis.Debug
 import Language.C.Analysis.DefTable
 import Language.C.Analysis.SemRep
 import Language.C.Analysis.TravMonad
 import Language.C.Analysis.TypeConversions
 import Language.C.Analysis.TypeUtils
+import Language.C.Analysis.Debug ()
 import Text.PrettyPrint.HughesPJ
 
 -- We used to re-implement and export the standard Either instance for
@@ -106,7 +105,7 @@ constType (CStrConst (CString chars wide) ni) =
 
 -- | Determine whether two types are compatible.
 compatible :: Type -> Type -> Either String ()
-compatible t1 t2 = compositeType t1 t2 >> return ()
+compatible t1 t2 = void$ compositeType t1 t2
 
 -- | Determine the composite type of two compatible types.
 compositeType :: Type -> Type -> Either String Type
@@ -149,9 +148,9 @@ compositeType (PtrType t1 q1 a1) t2 | isIntegralType t2 =
   return $ PtrType t1 (mergeTypeQuals q1 (typeQuals t2)) a1
 compositeType t1 (PtrType t2 q2 a2) | isIntegralType t1 =
   return $ PtrType t2 (mergeTypeQuals (typeQuals t1) q2) a2
-compositeType (ArrayType t1 sz1 q1 a1) t2 | isIntegralType t2 =
+compositeType (ArrayType t1 _sz1 q1 a1) t2 | isIntegralType t2 =
   return $ PtrType t1 q1 a1
-compositeType t1 (ArrayType t2 sz2 q2 a2) | isIntegralType t1 =
+compositeType t1 (ArrayType t2 _sz2 q2 a2) | isIntegralType t1 =
   return $ PtrType t2 q2 a2
 compositeType (ArrayType t1 s1 q1 a1) (ArrayType t2 s2 q2 a2) =
   do t <- compositeType t1 t2
@@ -166,20 +165,14 @@ compositeType t1 t2 | isPointerType t1 && isPointerType t2 =
      return (PtrType t quals attrs)
 compositeType (TypeDefType tdr1 q1 a1) (TypeDefType tdr2 q2 a2) =
   case (tdr1, tdr2) of
-    (TypeDefRef i1 Nothing _, TypeDefRef i2 _ _) -> doTypeDef i1 i2 tdr1
-    (TypeDefRef i1 _ _, TypeDefRef i2 Nothing _) -> doTypeDef i1 i2 tdr2
-    (TypeDefRef _ (Just t1) _, TypeDefRef _ (Just t2) _) ->
+    (TypeDefRef _ t1 _, TypeDefRef _ t2 _) ->
       compositeType t1 t2
-  where doTypeDef i1 i2 tdr =
-          do when (i1 /= i2) $ fail $ "incompatible typedef types: "
-                               ++ identToString i1 ++ ", " ++ identToString i2
-             return (TypeDefType tdr (mergeTypeQuals q1 q2) (mergeAttributes a1 a2))
 compositeType (FunctionType ft1 attrs1) (FunctionType ft2 attrs2) =
   case (ft1, ft2) of
     (FunType rt1 args1 varargs1, FunType rt2 args2 varargs2) ->
       do {- when (length args1 /= length args2) $
               fail "different numbers of arguments in function types" -}
-         args <- mapM (uncurry compositeParamDecl) (zip args1 args2)
+         args <- zipWithM compositeParamDecl args1 args2
          when (varargs1 /= varargs2) $
               fail "incompatible varargs declarations"
          doFunType rt1 rt2 args varargs1
@@ -266,7 +259,7 @@ assignCompatible CAssignOp t1 t2 =
     (t1', PtrType (DirectType TyVoid _ _) _ _) | isPointerType t1' -> return ()
     (PtrType _ _ _, t2') | isIntegralType t2' -> return ()
     (t1', t2') | isPointerType t1' && isPointerType t2' ->
-                 do compatible (baseType t1') (baseType t2')
+                 compatible (baseType t1') (baseType t2')
                 --unless (typeQuals t2 <= typeQuals t1) $
                 --       fail $
                 --       "incompatible qualifiers in pointer assignment: "
@@ -283,7 +276,7 @@ assignCompatible CAssignOp t1 t2 =
       | otherwise -> fail $ "incompatible direct types in assignment: "
                      ++ pType t1 ++ ", " ++ pType t2
     (t1', t2') -> compatible t1' t2'
-assignCompatible op t1 t2 = binopType (assignBinop op) t1 t2 >> return ()
+assignCompatible op t1 t2 = void$ binopType (assignBinop op) t1 t2
 
 -- | Determine the type of a binary operation.
 binopType :: CBinaryOp -> Type -> Type -> Either String Type
@@ -297,8 +290,9 @@ binopType op t1 t2 =
           (DirectType tn1 _ _, DirectType tn2 _ _) ->
                 case arithmeticConversion tn1 tn2 of
                   Just _ -> return boolType
-                  Nothing -> fail
-                             "incompatible arithmetic types in comparison"
+                  Nothing -> fail $ render $
+                             text "incompatible arithmetic types in comparison: "
+                             <+> pretty t1 <+> text "and" <+> pretty t2
           (PtrType (DirectType TyVoid _ _) _ _, _)
             | isPointerType t2' -> return boolType
           (_, PtrType (DirectType TyVoid _ _) _ _)

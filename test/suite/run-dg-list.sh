@@ -29,7 +29,7 @@ for f in `find . -name $cf | grep -v noncompile`; do
 		echo "[ERROR] Not running Test $f"
 		gcc -I$DG_DIR -I$DG_DIR/cpp -fsyntax-only -std=gnu9x $f
 		echo "[EXIT]"
-		exit 1		
+		exit 1
 	fi
 done
 done

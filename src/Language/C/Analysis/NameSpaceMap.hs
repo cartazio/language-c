@@ -34,7 +34,6 @@ import qualified Prelude
 import qualified Data.Map as Map (empty, insert, lookup, toList, union)
 import qualified Data.List as List (unionBy)
 import Data.Map   (Map)
-import Language.C.Data.Ident     (Ident)
 
 {-
 C Namespaces and scopes:
@@ -121,14 +120,15 @@ defLocal (NsMap    gs (ls:lss)) ident def =
 -- if there is one.
 lookupName :: (Ord k) => NameSpaceMap k a -> k -> Maybe a
 lookupName ns@(NsMap _ localDefs) ident
-    = case (lookupLocal localDefs) of
+    = case lookupLocal localDefs of
         Nothing  -> lookupGlobal ns ident
         Just def -> Just def
   where
     lookupLocal []       = Nothing
-    lookupLocal (ls:lss) = case (Prelude.lookup ident ls) of
-                        Nothing  -> lookupLocal lss
-                        Just def -> Just def
+    lookupLocal (ls:lss) =
+      case Prelude.lookup ident ls of
+        Nothing  -> lookupLocal lss
+        Just def -> Just def
 
 lookupGlobal :: (Ord k) => NameSpaceMap k a -> k -> Maybe a
 lookupGlobal (NsMap gs _) ident = Map.lookup ident gs

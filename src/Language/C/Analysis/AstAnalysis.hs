@@ -30,14 +30,11 @@ import Language.C.Analysis.SemError
 import Language.C.Analysis.SemRep
 import Language.C.Analysis.TravMonad
 import Language.C.Analysis.ConstEval
-import Language.C.Analysis.Debug
-import Language.C.Analysis.DefTable (DefTable, globalDefs, defineScopedIdent,
-                                     defineLabel, inFileScope, lookupTag,
+import Language.C.Analysis.DefTable (globalDefs, defineLabel, inFileScope,
                                      lookupLabel, insertType, lookupType)
 import Language.C.Analysis.DeclAnalysis
 import Language.C.Analysis.TypeUtils
 import Language.C.Analysis.TypeCheck
-import Language.C.Analysis.TypeConversions
 
 import Language.C.Data
 import Language.C.Pretty
@@ -48,13 +45,12 @@ import Language.C.Syntax.Utils
 import Text.PrettyPrint.HughesPJ
 
 
-import Control.Monad
-import Prelude hiding (reverse)
-import Data.Either (rights)
-import Data.Foldable (foldrM)
-import Data.List hiding (reverse)
+import Prelude hiding (mapM, mapM_, reverse)
+import Control.Monad hiding (mapM, mapM_)
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.Traversable (mapM)
+import Data.Foldable (mapM_)
 
 -- * analysis
 
@@ -71,7 +67,7 @@ analyseAST (CTranslUnit decls _file_node) = do
     -- analyse all declarations, but recover from errors
     mapRecoverM_ analyseExt decls
     -- check we are in global scope afterwards
-    getDefTable >>= \dt -> when (not (inFileScope dt)) $
+    getDefTable >>= \dt -> unless (inFileScope dt) $
         error "Internal Error: Not in filescope after analysis"
     -- get the global definition table (XXX: remove ?)
     liftM globalDefs getDefTable
@@ -92,14 +88,14 @@ analyseFunDef :: (MonadTrav m) => CFunDef -> m ()
 analyseFunDef (CFunDef declspecs declr oldstyle_decls stmt node_info) = do
     -- analyse the declarator
     var_decl_info <- analyseVarDecl' True declspecs declr oldstyle_decls Nothing
-    let (VarDeclInfo name is_inline storage_spec attrs ty declr_node) = var_decl_info
+    let (VarDeclInfo name fun_spec storage_spec attrs ty _declr_node) = var_decl_info
     when (isNoName name) $ astError node_info "NoName in analyseFunDef"
     let ident = identOfVarName name
     -- improve incomplete type
     ty' <- improveFunDefType ty
     -- compute storage
     fun_storage <- computeFunDefStorage ident storage_spec
-    let var_decl = VarDecl name (DeclAttrs is_inline fun_storage attrs) ty'
+    let var_decl = VarDecl name (DeclAttrs fun_spec fun_storage attrs) ty'
     -- callback for declaration
     handleVarDecl False (Decl var_decl node_info)
     -- process body
@@ -109,20 +105,27 @@ analyseFunDef (CFunDef declspecs declr oldstyle_decls stmt node_info) = do
     where
     improveFunDefType (FunctionType (FunTypeIncomplete return_ty) attrs) =
       return $ FunctionType (FunType return_ty [] False) attrs
-    improveFunDefType ty = return $ ty
+    improveFunDefType ty = return ty
+
+voidM :: Monad m => m a -> m ()
+voidM m = m >> return ()
 
 -- | Analyse a declaration other than a function definition
+--
+--   Note: static assertions are not analysed
 analyseDecl :: (MonadTrav m) => Bool -> CDecl -> m ()
+analyseDecl _is_local (CStaticAssert _expr _strlit _annot) = return () -- TODO
 analyseDecl is_local decl@(CDecl declspecs declrs node)
     | null declrs =
         case typedef_spec of Just _  -> astError node "bad typedef declaration: missing declarator"
-                             Nothing -> analyseTypeDecl decl >> return ()
+                             Nothing -> voidM$ analyseTypeDecl decl
     | (Just declspecs') <- typedef_spec = mapM_ (uncurry (analyseTyDef declspecs')) declr_list
-    | otherwise   = do let (storage_specs, attrs, typequals, typespecs, inline) =
+    | otherwise   = do let (storage_specs, attrs, typequals, typespecs, funspecs, _alignspecs) =
                              partitionDeclSpecs declspecs
                        canonTySpecs <- canonicalTypeSpec typespecs
+                       -- TODO: alignspecs not yet processed
                        let specs =
-                             (storage_specs, attrs, typequals, canonTySpecs, inline)
+                             (storage_specs, attrs, typequals, canonTySpecs, funspecs)
                        mapM_ (uncurry (analyseVarDeclr specs)) declr_list
     where
     declr_list = zip (True : repeat False) declrs
@@ -140,28 +143,29 @@ analyseDecl is_local decl@(CDecl declspecs declrs node)
           analyseVarDecl handle_sue_def storage_specs attrs typequals canonTySpecs inline
                          declr [] Nothing
         -- declare / define the object
-        if (isFunctionType typ)
+        if isFunctionType typ
             then extFunProto vardeclInfo
             else (if is_local then localVarDecl else extVarDecl)
                  -- XXX: if Initializer becomes different from CInit, this
                  -- will have to change.
                  vardeclInfo init_opt
-        init_opt' <- mapMaybeM init_opt (tInit typ)
+        _init_opt' <- mapMaybeM init_opt (tInit typ)
         return ()
     analyseVarDeclr _ _ (Nothing,_,_)         = astError node "abstract declarator in object declaration"
-    analyseVarDeclr _ _ (_,_,Just bitfieldSz) = astError node "bitfield size in object declaration"
+    analyseVarDeclr _ _ (_,_,Just _bitfieldSz) = astError node "bitfield size in object declaration"
 
 -- | Analyse a typedef
 analyseTypeDef :: (MonadTrav m) => Bool -> [CDeclSpec] -> CDeclr -> NodeInfo -> m ()
 analyseTypeDef handle_sue_def declspecs declr node_info = do
     -- analyse the declarator
-    (VarDeclInfo name is_inline storage_spec attrs ty declr_node) <- analyseVarDecl' handle_sue_def declspecs declr [] Nothing
-    checkValidTypeDef is_inline storage_spec attrs
+    (VarDeclInfo name fun_attrs storage_spec attrs ty _node) <- analyseVarDecl' handle_sue_def declspecs declr [] Nothing
+    checkValidTypeDef fun_attrs storage_spec attrs
     when (isNoName name) $ astError node_info "NoName in analyseTypeDef"
     let ident = identOfVarName name
     handleTypeDef (TypeDef ident ty attrs node_info)
     where
-    checkValidTypeDef True _ _ = astError node_info "inline specifier for typeDef"
+    checkValidTypeDef fun_attrs  _ _ | fun_attrs /= noFunctionAttrs =
+                                         astError node_info "inline specifier for typeDef"
     checkValidTypeDef _ NoStorageSpec _ = return ()
     checkValidTypeDef _ bad_storage _ = astError node_info $ "storage specified for typeDef: " ++ show bad_storage
 
@@ -173,7 +177,7 @@ analyseTypeDef handle_sue_def declspecs declr node_info = do
 -- This function won't raise an Trav error if the declaration is incompatible with the existing one,
 -- this case is handled in 'handleFunDef'.
 computeFunDefStorage :: (MonadTrav m) => Ident -> StorageSpec -> m Storage
-computeFunDefStorage _ (StaticSpec b)  = return$ FunLinkage InternalLinkage
+computeFunDefStorage _ (StaticSpec _)  = return$ FunLinkage InternalLinkage
 computeFunDefStorage ident other_spec  = do
   obj_opt <- lookupObject ident
   let defaultSpec = FunLinkage ExternalLinkage
@@ -190,11 +194,11 @@ getParams _ = Nothing
 
 -- | handle a function prototype
 extFunProto :: (MonadTrav m) => VarDeclInfo -> m ()
-extFunProto (VarDeclInfo var_name is_inline storage_spec attrs ty node_info) =
+extFunProto (VarDeclInfo var_name fun_spec storage_spec attrs ty node_info) =
     do  when (isNoName var_name) $ astError node_info "NoName in extFunProto"
         old_fun <- lookupObject (identOfVarName var_name)
         checkValidSpecs
-        let decl = VarDecl var_name (DeclAttrs is_inline (funDeclLinkage old_fun) attrs) ty
+        let decl = VarDecl var_name (DeclAttrs fun_spec (funDeclLinkage old_fun) attrs) ty
         handleVarDecl False (Decl decl node_info)
         -- XXX: structs should be handled in 'function prototype scope' too
         enterPrototypeScope
@@ -219,17 +223,19 @@ extFunProto (VarDeclInfo var_name is_inline storage_spec attrs ty node_info) =
 -- We have to check the storage specifiers here, as they determine wheter we're dealing with decalartions
 -- or definitions
 -- see [http://www.sivity.net/projects/language.c/wiki/ExternalDefinitions]
-extVarDecl :: (MonadTrav m) => VarDeclInfo -> (Maybe Initializer) -> m ()
-extVarDecl (VarDeclInfo var_name is_inline storage_spec attrs typ node_info) init_opt =
+extVarDecl :: (MonadTrav m) => VarDeclInfo -> Maybe Initializer -> m ()
+extVarDecl (VarDeclInfo var_name fun_spec storage_spec attrs typ node_info) init_opt =
     do when (isNoName var_name) $ astError node_info "NoName in extVarDecl"
        (storage,is_def) <- globalStorage storage_spec
-       let vardecl = VarDecl var_name (DeclAttrs is_inline storage attrs) typ
+       let vardecl = VarDecl var_name (DeclAttrs fun_spec storage attrs) typ
        if is_def
            then handleObjectDef False ident $ ObjDef vardecl init_opt node_info
            else handleVarDecl False $ Decl vardecl node_info
     where
        ident = identOfVarName var_name
-       globalStorage _ | is_inline = astError node_info "invalid `inline' specifier external variable"
+       globalStorage _ | fun_spec /= noFunctionAttrs =
+                           astError node_info "invalid function specifier for external variable"
+       globalStorage AutoSpec      = astError node_info "file-scope declaration specifies storage `auto'"
        globalStorage RegSpec       =
          do when (isJust init_opt) $ astError node_info "initializer given for global register variable"
             case var_name of
@@ -240,51 +246,50 @@ extVarDecl (VarDeclInfo var_name is_inline storage_spec attrs typ node_info) ini
             when (hasFunDef dt) $ astError node_info "global register variable appears after a function definition"
             return (Static InternalLinkage False, False)
        -- tentative if there is no initializer, external
-       globalStorage NoStorageSpec = return $ (Static ExternalLinkage False, True)
+       globalStorage NoStorageSpec = return (Static ExternalLinkage False, True)
+       globalStorage ThreadSpec    = return (Static ExternalLinkage True, True)
        -- tentative if there is no initializer, internal
-       globalStorage (StaticSpec thread_local) = return $ (Static InternalLinkage thread_local, True)
+       globalStorage (StaticSpec thread_local) = return (Static InternalLinkage thread_local, True)
        globalStorage (ExternSpec thread_local) =
            case init_opt of
                -- declaration with either external or old storage
                Nothing -> do old_decl <- lookupObject ident
-                             return $ (maybe (Static ExternalLinkage thread_local) declStorage old_decl,False)
+                             return (maybe (Static ExternalLinkage thread_local) declStorage old_decl,False)
                -- warning, external definition
                Just _  -> do warn $ badSpecifierError node_info "Both initializer and `extern` specifier given - treating as definition"
-                             return $ (Static ExternalLinkage thread_local, True)
+                             return (Static ExternalLinkage thread_local, True)
        hasFunDef dt = any (isFuncDef . snd) (Map.toList $ gObjs $ globalDefs dt)
-       isFuncDef (FunctionDef fd) = not $ isInline $ declAttrs fd
+       isFuncDef (FunctionDef fd) = not $ (isInline . functionAttrs) fd
        isFuncDef _ = False
-       isInline (DeclAttrs inl _ _) = inl
 
 -- | handle a function-scope object declaration \/ definition
 -- see [http://www.sivity.net/projects/language.c/wiki/LocalDefinitions]
-localVarDecl :: (MonadTrav m) => VarDeclInfo -> (Maybe Initializer) -> m ()
-localVarDecl (VarDeclInfo var_name is_inline storage_spec attrs typ node_info) init_opt =
+localVarDecl :: (MonadTrav m) => VarDeclInfo -> Maybe Initializer -> m ()
+localVarDecl (VarDeclInfo var_name fun_attrs storage_spec attrs typ node_info) init_opt =
     do when (isNoName var_name) $ astError node_info "NoName in localVarDecl"
        (storage,is_def) <- localStorage storage_spec
-       let vardecl = VarDecl var_name (DeclAttrs is_inline storage attrs) typ
+       let vardecl = VarDecl var_name (DeclAttrs fun_attrs storage attrs) typ
        if is_def
            then handleObjectDef True ident (ObjDef vardecl init_opt node_info)
            else handleVarDecl True (Decl vardecl node_info)
     where
     ident = identOfVarName var_name
-    localStorage _
-      | is_inline = astError node_info "invalid `inline' specifier for local variable"
-    localStorage NoStorageSpec = return $ (Auto False,True)
-    localStorage RegSpec = return $ (Auto True,True)
+    localStorage NoStorageSpec = return (Auto False,True)
+    localStorage ThreadSpec    = return (Auto True,True)
+    localStorage RegSpec = return (Auto True,True)
     -- static no linkage
     localStorage (StaticSpec thread_local) =
-      return $ (Static NoLinkage thread_local,True)
+      return (Static NoLinkage thread_local,True)
     localStorage (ExternSpec thread_local)
       | isJust init_opt = astError node_info "extern keyword and initializer for local"
       | otherwise =
           do old_decl <- lookupObject ident
              return (maybe (Static ExternalLinkage thread_local) declStorage old_decl,False)
-    localStorage s = astError node_info "bad storage specifier for local"
+    localStorage _ = astError node_info "bad storage specifier for local"
 
 defineParams :: MonadTrav m => NodeInfo -> VarDecl -> m ()
 defineParams ni decl =
-  case (getParams $ declType decl) of
+  case getParams (declType decl) of
     Nothing -> astError ni
                "expecting complete function type in function definition"
     Just params -> mapM_ handleParamDecl params
@@ -340,7 +345,7 @@ tStmt c (CCompound ls body _)    =
      return t
 tStmt c (CIf e sthen selse _)    =
   checkGuard c e >> tStmt c sthen
-                 >> maybe (return ()) (\s -> tStmt c s >> return ()) selse
+                 >> maybe (return ()) (voidM . tStmt c) selse
                  >> return voidType
 tStmt c (CSwitch e s ni)         =
   tExpr c RValue e >>= checkIntegral' ni >>
@@ -394,10 +399,10 @@ tStmt c (CFor i g inc s _)       =
      either (maybe (return ()) checkExpr) (analyseDecl True) i
      maybe (return ()) (checkGuard c) g
      maybe (return ()) checkExpr inc
-     tStmt (LoopCtx : c) s
+     _ <- tStmt (LoopCtx : c) s
      leaveBlockScope
      return voidType
-  where checkExpr e = tExpr c RValue e >> return ()
+  where checkExpr e = voidM$ tExpr c RValue e
 tStmt c (CGotoPtr e ni)          =
   do t <- tExpr c RValue e
      case t of
@@ -423,18 +428,20 @@ defaultMD =
   MachineDesc
   { iSize = \it ->
             case it of
-              TyBool   -> 1
-              TyChar   -> 1
-              TySChar  -> 1
-              TyUChar  -> 1
-              TyShort  -> 2
-              TyUShort -> 2
-              TyInt    -> 4
-              TyUInt   -> 4
-              TyLong   -> 4
-              TyULong  -> 4
-              TyLLong  -> 8
-              TyULLong -> 8
+              TyBool    -> 1
+              TyChar    -> 1
+              TySChar   -> 1
+              TyUChar   -> 1
+              TyShort   -> 2
+              TyUShort  -> 2
+              TyInt     -> 4
+              TyUInt    -> 4
+              TyLong    -> 4
+              TyULong   -> 4
+              TyLLong   -> 8
+              TyULLong  -> 8
+              TyInt128  -> 16
+              TyUInt128 -> 16
   , fSize = \ft ->
             case ft of
               TyFloat   -> 4
@@ -448,18 +455,20 @@ defaultMD =
   , voidSize = 1
   , iAlign = \it ->
              case it of
-               TyBool   -> 1
-               TyChar   -> 1
-               TySChar  -> 1
-               TyUChar  -> 1
-               TyShort  -> 2
-               TyUShort -> 2
-               TyInt    -> 4
-               TyUInt   -> 4
-               TyLong   -> 4
-               TyULong  -> 4
-               TyLLong  -> 8
-               TyULLong -> 8
+               TyBool    -> 1
+               TyChar    -> 1
+               TySChar   -> 1
+               TyUChar   -> 1
+               TyShort   -> 2
+               TyUShort  -> 2
+               TyInt     -> 4
+               TyUInt    -> 4
+               TyLong    -> 4
+               TyULong   -> 4
+               TyLLong   -> 8
+               TyULLong  -> 8
+               TyInt128  -> 16
+               TyUInt128 -> 16
   , fAlign = \ft ->
              case ft of
                TyFloat   -> 4
@@ -482,7 +491,7 @@ tExpr c side e =
            Just t -> return t
            Nothing ->
              do t <- tExpr' c side e
-                withDefTable (\dt -> (t, insertType dt n t))
+                withDefTable (\dt' -> (t, insertType dt' n t))
     Nothing -> tExpr' c side e
 
 -- | Typecheck an expression, with information about whether it
@@ -528,7 +537,7 @@ tExpr' c side (CCond e1 me2 e3 ni)     =
          do t2 <- tExpr c side e2
             conditionalType' ni t2 t3
        Nothing -> conditionalType' ni t1 t3
-tExpr' c side (CMember e m deref ni)   =
+tExpr' c _ (CMember e m deref ni)   =
   do t <- tExpr c RValue e
      bt <- if deref then typeErrorOnLeft ni (derefType t) else return t
      fieldType ni m bt
@@ -541,11 +550,11 @@ tExpr' c side (CCast d e ni)           =
      return dt
 tExpr' c side (CSizeofExpr e ni)       =
   do when (side == LValue) $ typeError ni "sizeof as lvalue"
-     tExpr c RValue e
+     _ <- tExpr c RValue e
      return size_tType
 tExpr' c side (CAlignofExpr e ni)      =
   do when (side == LValue) $ typeError ni "alignof as lvalue"
-     tExpr c RValue e
+     _ <- tExpr c RValue e
      return size_tType
 tExpr' c side (CComplexReal e ni)      = complexBaseType ni c side e
 tExpr' c side (CComplexImag e ni)      = complexBaseType ni c side e
@@ -563,7 +572,33 @@ tExpr' _ LValue (CAlignofType _ ni)    =
   typeError ni "alignoftype as lvalue"
 tExpr' _ LValue (CSizeofType _ ni)     =
   typeError ni "sizeoftype as lvalue"
-tExpr' _ side (CVar i ni)              =
+tExpr' ctx side (CGenericSelection expr list ni) = do
+  ty_sel <- tExpr ctx side expr
+  ty_list <- mapM analyseAssoc list
+  def_expr_ty <-
+    case dropWhile (isJust . fst) ty_list of
+      [(Nothing,tExpr'')] -> return (Just tExpr'')
+      [] -> return Nothing
+      _ -> astError ni "more than one default clause in generic selection"
+  case dropWhile (maybe True (not . typesMatch ty_sel) . fst) ty_list of
+    ((_,expr_ty) : _ ) -> return expr_ty
+    [] -> case def_expr_ty of
+      (Just expr_ty) -> return expr_ty
+      Nothing -> astError ni ("no clause matches for generic selection (not fully supported) - selector type is " ++ show (pretty ty_sel) ++
+                              ", available types are " ++ show (map (pretty.fromJust.fst) (filter (isJust.fst) ty_list)))
+  where
+    analyseAssoc (mdecl,expr') = do
+      tDecl <- mapM analyseTypeDecl mdecl
+      tExpr'' <- tExpr ctx side expr'
+      return (tDecl, tExpr'')
+    typesMatch (DirectType tn1 _ _) (DirectType tn2 _ _) = directTypesMatch tn1 tn2
+    typesMatch _ _ = False -- not fully supported
+    directTypesMatch TyVoid TyVoid = True
+    directTypesMatch (TyIntegral t1) (TyIntegral t2) = t1 == t2
+    directTypesMatch (TyFloating t1) (TyFloating t2) = t1 == t2
+    directTypesMatch (TyComplex t1) (TyComplex t2) = t1 == t2
+    directTypesMatch _ _ = False -- TODO: not fully supported
+tExpr' _ _ (CVar i ni)              =
   lookupObject i >>=
   maybe (typeErrorOnLeft ni $ notFound i) (return . declType)
 tExpr' _ _ (CConst c)                  = constType c
@@ -607,12 +642,12 @@ tExpr' c _ (CCall fe args ni)          =
        _  -> typeError ni $ "attempt to call non-function of type " ++ pType t
   where checkArg (pty, aty, arg) =
           do attrs <- deepTypeAttrs pty
-             case isTransparentUnion attrs of
-               True ->
+             if isTransparentUnion attrs
+               then
                  case canonicalType pty of
                    DirectType (TyComp ctr) _ _ ->
                      do td <- lookupSUE (nodeInfo arg) (sueRef ctr)
-                        ms <- tagMembers (nodeInfo arg) td
+                        _ms <- tagMembers (nodeInfo arg) td
                         {-
                         when (null $ rights $ matches ms) $
                              astError (nodeInfo arg) $
@@ -620,15 +655,16 @@ tExpr' c _ (CCall fe args ni)          =
                              "of transparent union"
                         -}
                         return ()
-                     where matches =
-                             map (\d -> assignCompatible
-                                        CAssignOp
-                                        (snd d)
-                                        aty
-                                 )
+                     -- where matches =
+                     --         map (\d -> assignCompatible
+                     --                    CAssignOp
+                     --                    (snd d)
+                     --                    aty
+                     --             )
                    _ -> astError (nodeInfo arg)
                         "non-composite has __transparent_union__ attribute"
-               False -> assignCompatible' (nodeInfo arg) CAssignOp pty aty
+               else
+                 assignCompatible' (nodeInfo arg) CAssignOp pty aty
         isTransparentUnion =
           any (\(Attr n _ _) -> identToString n == "__transparent_union__")
 tExpr' c _ (CAssign op le re ni)       =
@@ -650,8 +686,8 @@ tExpr' c _ (CStatExpr s _)             =
      return t
 
 tInitList :: MonadTrav m => NodeInfo -> Type -> CInitList -> m ()
-tInitList ni t@(ArrayType (DirectType (TyIntegral TyChar) _ _) _ _ _)
-             [([], CInitExpr e@(CConst (CStrConst _ _)) _)] =
+tInitList _ (ArrayType (DirectType (TyIntegral TyChar) _ _) _ _ _)
+              [([], CInitExpr e@(CConst (CStrConst _ _)) _)] =
   tExpr [] RValue e >> return ()
 tInitList ni t@(ArrayType _ _ _ _) initList =
   do let default_ds =
@@ -662,9 +698,9 @@ tInitList ni t@(DirectType (TyComp ctr) _ _) initList =
      ms <- tagMembers ni td
      let default_ds = map (\m -> CMemberDesig (fst m) ni) ms
      checkInits t default_ds initList
-tInitList ni (PtrType (DirectType TyVoid _ _) _ _ ) _ =
+tInitList _ (PtrType (DirectType TyVoid _ _) _ _ ) _ =
           return () -- XXX: more checking
-tInitList _ t [([], i)] = tInit t i >> return ()
+tInitList _ t [([], i)] = voidM$ tInit t i
 tInitList ni t _ = typeError ni $ "initializer list for type: " ++ pType t
 
 checkInits :: MonadTrav m => Type -> [CDesignator] -> CInitList -> m ()
@@ -676,7 +712,7 @@ checkInits t dds ((ds, i) : is) =
                       (dd' : rest, []) -> return (rest, [dd'])
                       (_, d : _) -> return (advanceDesigList dds d, ds)
      t' <- tDesignator t ds'
-     tInit t' i
+     _ <- tInit t' i
      checkInits t dds' is
 
 advanceDesigList :: [CDesignator] -> CDesignator -> [CDesignator]
@@ -695,14 +731,16 @@ tDesignator (ArrayType bt _ _ _) (CRangeDesig e1 e2 ni : ds) =
   do tExpr [] RValue e1 >>= checkIntegral' ni
      tExpr [] RValue e2 >>= checkIntegral' ni
      tDesignator bt ds
-tDesignator (ArrayType _ _ _ _) (d : ds) =
+tDesignator (ArrayType _ _ _ _) (d : _) =
   typeError (nodeInfo d) "member designator in array initializer"
 tDesignator t@(DirectType (TyComp _) _ _) (CMemberDesig m ni : ds) =
   do mt <- fieldType ni m t
      tDesignator (canonicalType mt) ds
-tDesignator t@(DirectType (TyComp _) _ _) (d : _) =
+tDesignator (DirectType (TyComp _) _ _) (d : _) =
   typeError (nodeInfo d) "array designator in compound initializer"
 tDesignator t [] = return t
+tDesignator _t _ =
+  error "unepxected type with designator"
 
 tInit :: MonadTrav m => Type -> CInit -> m Initializer
 tInit t i@(CInitExpr e ni) =
@@ -734,5 +772,5 @@ hasTypeDef declspecs =
         (True,specs') -> Just specs'
         (False,_)     -> Nothing
     where
-    hasTypeDefSpec (CStorageSpec (CTypedef n)) (_,specs) = (True, specs)
+    hasTypeDefSpec (CStorageSpec (CTypedef _)) (_,specs) = (True, specs)
     hasTypeDefSpec spec (b,specs) = (b,spec:specs)

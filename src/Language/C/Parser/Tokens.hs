@@ -11,11 +11,11 @@
 --  C Tokens for the C lexer.
 --
 -----------------------------------------------------------------------------
-module Language.C.Parser.Tokens (CToken(..), posLenOfTok, GnuCTok(..)) where
+module Language.C.Parser.Tokens (CToken(..), posLenOfTok, GnuCTok(..), ClangCTok(..)) where
 
 import Language.C.Data.Position    (Position, Pos(..), PosLength)
 import Language.C.Data.Ident       (Ident, identToString)
-import Language.C.Syntax.Constants (CChar, CInteger, CFloat, CString)
+import Language.C.Syntax.Constants (CChar, CInteger, CFloat, CString, ClangCVersion)
 
 -- token definition
 -- ----------------
@@ -71,9 +71,11 @@ data CToken = CTokLParen   !PosLength            -- `('
             | CTokAlignof  !PosLength            -- `alignof'
                                                 -- (or `__alignof',
                                                 -- `__alignof__')
+            | CTokAlignas  !PosLength            -- `_Alignas'
             | CTokAsm      !PosLength            -- `asm'
                                                 -- (or `__asm',
                                                 -- `__asm__')
+            | CTokAtomic   !PosLength            -- `_Atomic'
             | CTokAuto     !PosLength            -- `auto'
             | CTokBreak    !PosLength            -- `break'
             | CTokBool     !PosLength            -- `_Bool'
@@ -91,14 +93,19 @@ data CToken = CTokLParen   !PosLength            -- `('
             | CTokExtern   !PosLength            -- `extern'
             | CTokFloat    !PosLength            -- `float'
             | CTokFor      !PosLength            -- `for'
+            | CTokGeneric  !PosLength            -- `_Generic'
             | CTokGoto     !PosLength            -- `goto'
             | CTokIf       !PosLength            -- `if'
             | CTokInline   !PosLength            -- `inline'
                                                 -- (or `__inline',
                                                 -- `__inline__')
             | CTokInt      !PosLength            -- `int'
+            | CTokInt128   !PosLength            -- `__int128`
             | CTokLong     !PosLength            -- `long'
-            | CTokLabel    !PosLength            -- `__label__'
+            | CTokLabel    !PosLength            -- `__label__
+            | CTokNoreturn !PosLength            -- `_Noreturn'
+            | CTokNullable !PosLength            -- `_Nullable'
+            | CTokNonnull  !PosLength            -- `_Nonnull'
             | CTokRegister !PosLength            -- `register'
             | CTokRestrict !PosLength            -- `restrict'
                                                 -- (or `__restrict',
@@ -110,6 +117,7 @@ data CToken = CTokLParen   !PosLength            -- `('
                                                 -- `__signed__')
             | CTokSizeof   !PosLength            -- `sizeof'
             | CTokStatic   !PosLength            -- `static'
+            | CTokStaticAssert !PosLength        -- `_Static_assert'
             | CTokStruct   !PosLength            -- `struct'
             | CTokSwitch   !PosLength            -- `switch'
             | CTokTypedef  !PosLength            -- `typedef'
@@ -131,6 +139,7 @@ data CToken = CTokLParen   !PosLength            -- `('
               -- not generated here, but in `CParser.parseCHeader'
             | CTokTyIdent  !PosLength !Ident     -- `typedef-name' identifier
             | CTokGnuC !GnuCTok !PosLength       -- special GNU C tokens
+            | CTokClangC !PosLength !ClangCTok   -- special Clang C tokens
             | CTokEof                           -- end of file
 
 -- special tokens used in GNU C extensions to ANSI C
@@ -142,6 +151,8 @@ data GnuCTok = GnuCAttrTok              -- `__attribute__'
              | GnuCTyCompat             -- `__builtin_types_compatible_p'
              | GnuCComplexReal          -- `__real__'
              | GnuCComplexImag          -- `__imag__'
+
+data ClangCTok = ClangCVersionTok !ClangCVersion -- version constant from 'availability' attribute
 
 instance Pos CToken where
   posOf = fst . posLenOfTok
@@ -195,7 +206,9 @@ posLenOfTok (CTokLBrace   pos  ) = pos
 posLenOfTok (CTokRBrace   pos  ) = pos
 posLenOfTok (CTokEllipsis pos  ) = pos
 posLenOfTok (CTokAlignof  pos  ) = pos
+posLenOfTok (CTokAlignas  pos  ) = pos
 posLenOfTok (CTokAsm      pos  ) = pos
+posLenOfTok (CTokAtomic   pos  ) = pos
 posLenOfTok (CTokAuto     pos  ) = pos
 posLenOfTok (CTokBreak    pos  ) = pos
 posLenOfTok (CTokBool     pos  ) = pos
@@ -212,12 +225,17 @@ posLenOfTok (CTokEnum     pos  ) = pos
 posLenOfTok (CTokExtern   pos  ) = pos
 posLenOfTok (CTokFloat    pos  ) = pos
 posLenOfTok (CTokFor      pos  ) = pos
+posLenOfTok (CTokGeneric  pos  ) = pos
 posLenOfTok (CTokGoto     pos  ) = pos
 posLenOfTok (CTokInt      pos  ) = pos
+posLenOfTok (CTokInt128   pos  ) = pos
 posLenOfTok (CTokInline   pos  ) = pos
 posLenOfTok (CTokIf       pos  ) = pos
 posLenOfTok (CTokLong     pos  ) = pos
 posLenOfTok (CTokLabel    pos  ) = pos
+posLenOfTok (CTokNoreturn pos  ) = pos
+posLenOfTok (CTokNullable pos  ) = pos
+posLenOfTok (CTokNonnull  pos  ) = pos
 posLenOfTok (CTokRegister pos  ) = pos
 posLenOfTok (CTokRestrict pos  ) = pos
 posLenOfTok (CTokReturn   pos  ) = pos
@@ -225,6 +243,7 @@ posLenOfTok (CTokShort    pos  ) = pos
 posLenOfTok (CTokSigned   pos  ) = pos
 posLenOfTok (CTokSizeof   pos  ) = pos
 posLenOfTok (CTokStatic   pos  ) = pos
+posLenOfTok (CTokStaticAssert pos) = pos
 posLenOfTok (CTokStruct   pos  ) = pos
 posLenOfTok (CTokSwitch   pos  ) = pos
 posLenOfTok (CTokTypedef  pos  ) = pos
@@ -242,6 +261,7 @@ posLenOfTok (CTokSLit     pos _) = pos
 posLenOfTok (CTokIdent    pos _) = pos
 posLenOfTok (CTokTyIdent  pos _) = pos
 posLenOfTok (CTokGnuC   _ pos  ) = pos
+posLenOfTok (CTokClangC   pos _) = pos
 posLenOfTok CTokEof = error "tokenPos: Eof"
 
 instance Show CToken where
@@ -292,7 +312,9 @@ instance Show CToken where
   showsPrec _ (CTokRBrace   _  ) = showString "}"
   showsPrec _ (CTokEllipsis _  ) = showString "..."
   showsPrec _ (CTokAlignof  _  ) = showString "alignof"
+  showsPrec _ (CTokAlignas  _  ) = showString "_Alignas"
   showsPrec _ (CTokAsm      _  ) = showString "asm"
+  showsPrec _ (CTokAtomic      _  ) = showString "_Atomic"
   showsPrec _ (CTokAuto     _  ) = showString "auto"
   showsPrec _ (CTokBool _)       = showString "_Bool"
   showsPrec _ (CTokBreak    _  ) = showString "break"
@@ -309,12 +331,17 @@ instance Show CToken where
   showsPrec _ (CTokExtern   _  ) = showString "extern"
   showsPrec _ (CTokFloat    _  ) = showString "float"
   showsPrec _ (CTokFor      _  ) = showString "for"
+  showsPrec _ (CTokGeneric  _  ) = showString "_Generic"
   showsPrec _ (CTokGoto     _  ) = showString "goto"
   showsPrec _ (CTokIf       _  ) = showString "if"
   showsPrec _ (CTokInline   _  ) = showString "inline"
   showsPrec _ (CTokInt      _  ) = showString "int"
+  showsPrec _ (CTokInt128   _  ) = showString "__int128"
   showsPrec _ (CTokLong     _  ) = showString "long"
   showsPrec _ (CTokLabel    _  ) = showString "__label__"
+  showsPrec _ (CTokNoreturn    _  ) = showString "_Noreturn"
+  showsPrec _ (CTokNullable    _  ) = showString "_Nullable"
+  showsPrec _ (CTokNonnull     _  ) = showString "_Nonnull"
   showsPrec _ (CTokRegister _  ) = showString "register"
   showsPrec _ (CTokRestrict _  ) = showString "restrict"
   showsPrec _ (CTokReturn   _  ) = showString "return"
@@ -322,11 +349,12 @@ instance Show CToken where
   showsPrec _ (CTokSigned   _  ) = showString "signed"
   showsPrec _ (CTokSizeof   _  ) = showString "sizeof"
   showsPrec _ (CTokStatic   _  ) = showString "static"
+  showsPrec _ (CTokStaticAssert   _  ) = showString "_Static_assert"
   showsPrec _ (CTokStruct   _  ) = showString "struct"
   showsPrec _ (CTokSwitch   _  ) = showString "switch"
   showsPrec _ (CTokTypedef  _  ) = showString "typedef"
   showsPrec _ (CTokTypeof   _  ) = showString "typeof"
-  showsPrec _ (CTokThread   _  ) = showString "__thread"
+  showsPrec _ (CTokThread   _  ) = showString "_Thread_local"
   showsPrec _ (CTokUnion    _  ) = showString "union"
   showsPrec _ (CTokUnsigned _  ) = showString "unsigned"
   showsPrec _ (CTokVoid     _  ) = showString "void"
@@ -345,4 +373,5 @@ instance Show CToken where
   showsPrec _ (CTokGnuC GnuCVaArg    _) = showString "__builtin_va_arg"
   showsPrec _ (CTokGnuC GnuCOffsetof _) = showString "__builtin_offsetof"
   showsPrec _ (CTokGnuC GnuCTyCompat _) = showString "__builtin_types_compatible_p"
+  showsPrec _ (CTokClangC _ (ClangCVersionTok v)) = shows v
   showsPrec _ CTokEof = error "show CToken : CTokEof"

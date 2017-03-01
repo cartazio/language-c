@@ -136,3 +136,8 @@ int (__attribute__((noreturn)) function) (a, b)
   return a + b;
 }
 
+/* GNU example enumerator attributes */
+enum E {
+  oldval __attribute__((deprecated)),
+  newval
+};

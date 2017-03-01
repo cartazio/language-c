@@ -1,6 +1,6 @@
 Name:           language-c
-Version:        0.4.3
-Cabal-Version:  >= 1.6
+Version:        0.6
+Cabal-Version:  >= 1.8
 Build-Type:     Simple
 License:        BSD3
 License-File:   LICENSE
@@ -8,14 +8,15 @@ Copyright:      LICENSE
 Author:         AUTHORS
 Maintainer:     benedikt.huber@gmail.com
 Stability:      experimental
-Homepage:       http://www.sivity.net/projects/language.c/
-Bug-reports:    http://www.sivity.net/projects/language.c/
+Homepage:       http://visq.github.io/language-c/
+Bug-reports:    https://github.com/visq/language-c/issues/
 
 Synopsis:       Analysis and generation of C code
 Description:    Language C is a haskell library for the analysis and generation of C code.
                 It features a complete, well tested parser and pretty printer for all of C99 and a large
                 set of GNU extensions.
 Category:       Language
+Tested-With:    GHC == 7.8.*, GHC == 7.10.*, GHC == 8.0.*
 
 Extra-Source-Files: AUTHORS AUTHORS.c2hs ChangeLog README
                     src/Language/C/Parser/Lexer.x
@@ -32,11 +33,17 @@ Flag useByteStrings
     Default: True
 Flag separateSYB
   description: Data.Generics available in separate package.
-
+Flag allWarnings
+    Description: Turn on all warnings for building (development)
+    Default: False
 Library
     Extensions: CPP, DeriveDataTypeable, PatternGuards, BangPatterns, ExistentialQuantification, GeneralizedNewtypeDeriving, ScopedTypeVariables
     Build-Depends:  filepath
-
+    if flag(allWarnings)
+        if impl(ghc >= 8.0)
+          ghc-options:     -Wall -Wno-redundant-constraints
+        else
+          ghc-options:     -Wall
     if flag(splitBase)
         Build-Depends: base >= 3 && < 5, process, directory, array, containers, pretty
 
@@ -107,3 +114,8 @@ Library
                       Language.C.Parser.Tokens
                       Language.C.Parser.Parser
 
+-- test description
+Test-Suite language-c-harness
+    type:       exitcode-stdio-1.0
+    main-is:    test/harness/run-harness.hs
+    build-depends: base, language-c, directory, process, filepath

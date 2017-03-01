@@ -23,13 +23,13 @@ module Language.C.Syntax.Constants (
   cFloat,  CFloat(..), readCFloat,
   -- * C string literals
   cString, cString_w, CString(..), getCString, showStringLit, concatCStrings,
+  -- * Clang C version literals
+  ClangCVersion(..), readClangCVersion,
 )
 where
 import Data.Bits
 import Data.Char
 import Numeric (showOct, showHex, readHex, readOct, readDec)
-import Language.C.Data.Node
-import Language.C.Data.Position
 import Data.Generics
 
 -- | C char constants (abstract)
@@ -43,7 +43,7 @@ data CChar = CChar
 
 instance Show CChar where
     showsPrec _ (CChar c wideflag)   = _showWideFlag wideflag . showCharConst c
-    showsPrec _ (CChars cs wideflag) = _showWideFlag wideflag . (sQuote $ concatMap escapeCChar cs)
+    showsPrec _ (CChars cs wideflag) = _showWideFlag wideflag . sQuote (concatMap escapeCChar cs)
 
 -- | @showCharConst c@ prepends _a_ String representing the C char constant corresponding to @c@.
 -- If necessary uses octal or hexadecimal escape sequences.
@@ -54,7 +54,7 @@ _showWideFlag :: Bool -> ShowS
 _showWideFlag flag = if flag then showString "L" else id
 
 -- | get the haskell representation of a char constant
-getCChar :: CChar -> [Char]
+getCChar :: CChar -> String
 getCChar (CChar  c _)   = [c]
 getCChar (CChars  cs _) = cs
 
@@ -79,7 +79,7 @@ cChar_w :: Char -> CChar
 cChar_w c = CChar c True
 
 -- | create a multi-character character constant
-cChars :: [Char] -> Bool -> CChar
+cChars :: String -> Bool -> CChar
 cChars = CChars
 
 -- | datatype for memorizing the representation of an integer
@@ -103,11 +103,11 @@ data CInteger = CInteger
                  !(Flags CIntFlag)  -- integer flags
                  deriving (Eq,Ord,Data,Typeable)
 instance Show CInteger where
-    showsPrec _ (CInteger i repr flags) = showInt i . showString (concatMap showIFlag [FlagUnsigned .. ]) where
+    showsPrec _ (CInteger ig repr flags) = showInt ig . showString (concatMap showIFlag [FlagUnsigned .. ]) where
         showIFlag f = if testFlag f flags then show f else []
-        showInt i = case repr of DecRepr -> shows i
-                                 OctalRepr -> showString "0" . showOct i
-                                 HexRepr -> showString "0x" . showHex i
+        showInt num = case repr of DecRepr -> shows num
+                                   OctalRepr -> showString "0" . showOct num
+                                   HexRepr -> showString "0x" . showHex num
 
 -- To be used in the lexer
 -- Note that the flag lexer won't scale
@@ -153,9 +153,20 @@ cFloat = CFloat . show
 readCFloat :: String -> CFloat
 readCFloat = CFloat
 
+-- | Clang dotted version literal
+-- <https://clang.llvm.org/docs/AttributeReference.html#availability>
+data ClangCVersion = ClangCVersion
+                     !String
+                     deriving (Eq,Ord,Data,Typeable)
+instance Show ClangCVersion where
+  showsPrec _ (ClangCVersion internal) = showString internal
+
+readClangCVersion :: String -> ClangCVersion
+readClangCVersion = ClangCVersion
+
 -- | C String literals
 data CString = CString
-                [Char]    -- characters
+                String    -- characters
                 Bool      -- wide flag
                 deriving (Eq,Ord,Data,Typeable)
 instance Show CString where

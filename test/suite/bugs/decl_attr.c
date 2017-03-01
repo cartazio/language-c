@@ -15,6 +15,14 @@ struct {
   struct { int a_5; } x_24, D x_25;
   struct { int a_6; } x_26, x_27 D;
   } x_15;
+enum E {
+  ev_0     = 0,
+  ev_1 D   = 1,
+  ev_2 D D = 2,
+  ev_3,
+  ev_4 D,
+  ev_5 D D
+};
 int main() {
   /* x_2, x_3, x_6 */
   return x_1+x_2+x_3+x_4+x_5+x_6+x_7+x_8+x_9.a+x_10.a+x_11.a+x_12.a

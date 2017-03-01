@@ -1,14 +1,10 @@
 -- Minimal example: parse a file, and pretty print it again
 module Main where
 import System.Environment
-import System.FilePath
 import System.Exit
 import System.IO
-import Control.Arrow      hiding ((<+>))
 import Control.Monad
-import Debug.Trace
 import Text.PrettyPrint.HughesPJ
-import Data.List
 
 import Language.C              -- simple API
 import Language.C.System.GCC   -- preprocessor used

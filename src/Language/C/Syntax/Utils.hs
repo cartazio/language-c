@@ -47,7 +47,7 @@ mapSubStmts stop f (CCompound ls body ni) =
 mapSubStmts stop f (CIf e sthen selse ni) =
   f (CIf e
      (mapSubStmts stop f sthen)
-     (maybe Nothing (Just . mapSubStmts stop f) selse)
+     (fmap (mapSubStmts stop f) selse)
      ni)
 mapSubStmts stop f (CSwitch e s ni) =
   f (CSwitch e (mapSubStmts stop f s) ni)

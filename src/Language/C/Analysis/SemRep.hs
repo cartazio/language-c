@@ -30,6 +30,7 @@ TypeDef(..),identOfTypeDef,
 VarDecl(..),
 -- * Declaration attributes
 DeclAttrs(..),isExtDecl,
+FunctionAttrs(..), functionAttrs, noFunctionAttrs,
 Storage(..),declStorage,ThreadLocal,Register,
 Linkage(..),hasLinkage,declLinkage,
 -- * Types
@@ -54,12 +55,10 @@ Stmt,Expr,Initializer,AsmBlock,
 where
 import Language.C.Data
 import Language.C.Syntax
-import Language.C.Syntax.Constants
-
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe
 import Data.Generics
-import Text.PrettyPrint.HughesPJ
 
 -- | accessor class : struct\/union\/enum names
 class HasSUERef a where
@@ -70,8 +69,8 @@ class HasCompTyKind a where
     compTag :: a -> CompTyKind
 
 -- | Composite type definitions (tags)
-data TagDef =  CompDef CompType	  --definition
-     	       | EnumDef EnumType      -- enum definition
+data TagDef =  CompDef CompType  --composite definition
+             | EnumDef EnumType  --enum definition
                deriving (Typeable, Data {-! ,CNode !-})
 
 instance HasSUERef TagDef where
@@ -111,9 +110,9 @@ instance (Declaration a, Declaration b) => Declaration (Either a b) where
 
 -- | identifiers, typedefs and enumeration constants (namespace sum)
 data IdentDecl = Declaration Decl           -- ^ object or function declaration
-	             | ObjectDef ObjDef           -- ^ object definition
-	             | FunctionDef FunDef         -- ^ function definition
-	             | EnumeratorDef Enumerator   -- ^ definition of an enumerator
+                     | ObjectDef ObjDef           -- ^ object definition
+                     | FunctionDef FunDef         -- ^ function definition
+                     | EnumeratorDef Enumerator   -- ^ definition of an enumerator
                deriving (Typeable, Data {-! ,CNode !-})
 
 instance Declaration IdentDecl where
@@ -221,7 +220,7 @@ instance Declaration ObjDef where
 
 -- | Returns @True@ if the given object definition is tentative.
 isTentative :: ObjDef -> Bool
-isTentative (ObjDef decl init_opt _) | isExtDecl decl = maybe True (const False) init_opt
+isTentative (ObjDef decl init_opt _) | isExtDecl decl = isNothing init_opt
                                      | otherwise = False
 
 -- | Function definitions
@@ -251,7 +250,7 @@ data MemberDecl = MemberDecl VarDecl (Maybe Expr) NodeInfo
 
 instance Declaration MemberDecl where
   getVarDecl (MemberDecl vd _ _) = vd
-  getVarDecl (AnonBitField ty _ _) = VarDecl NoName (DeclAttrs False NoStorage []) ty
+  getVarDecl (AnonBitField ty _ _) = VarDecl NoName (DeclAttrs noFunctionAttrs NoStorage []) ty
 
 -- | @typedef@ definitions.
 --
@@ -277,13 +276,25 @@ isExtDecl = hasLinkage . declStorage
 -- | Declaration attributes of the form @DeclAttrs isInlineFunction storage linkage attrs@
 --
 -- They specify the storage and linkage of a declared object.
-data DeclAttrs = DeclAttrs Bool Storage Attributes
-                 -- ^ @DeclAttrs inline storage attrs@
+data DeclAttrs = DeclAttrs FunctionAttrs Storage Attributes
+                 -- ^ @DeclAttrs fspecs storage attrs@
                deriving (Typeable, Data)
 
 -- | get the 'Storage' of a declaration
 declStorage :: (Declaration d) => d -> Storage
 declStorage d = case declAttrs d of (DeclAttrs _ st _) -> st
+
+-- | get the `function attributes' of a declaration
+functionAttrs :: (Declaration d) => d -> FunctionAttrs
+functionAttrs d = case declAttrs d of (DeclAttrs fa _ _) -> fa
+
+-- Function attributes (inline, noreturn)
+data FunctionAttrs = FunctionAttrs { isInline :: Bool, isNoreturn :: Bool }
+  deriving (Eq, Ord, Typeable, Data)
+
+noFunctionAttrs :: FunctionAttrs
+noFunctionAttrs = FunctionAttrs { isInline = False, isNoreturn = False }
+
 
 -- In C we have
 --  Identifiers can either have internal, external or no linkage
@@ -377,7 +388,7 @@ data BuiltinType = TyVaList
 
 -- | typdef references
 -- If the actual type is known, it is attached for convenience
-data TypeDefRef = TypeDefRef Ident (Maybe Type) NodeInfo
+data TypeDefRef = TypeDefRef Ident Type NodeInfo
                deriving (Typeable, Data {-! ,CNode !-})
 
 -- | integral types (C99 6.7.2.2)
@@ -390,6 +401,8 @@ data IntType =
     | TyUShort
     | TyInt
     | TyUInt
+    | TyInt128
+    | TyUInt128
     | TyLong
     | TyULong
     | TyLLong
@@ -405,6 +418,8 @@ instance Show IntType where
     show TyUShort = "unsigned short"
     show TyInt = "int"
     show TyUInt = "unsigned int"
+    show TyInt128 = "__int128"
+    show TyUInt128 = "unsigned __int128"
     show TyLong = "long"
     show TyULong = "unsigned long"
     show TyLLong = "long long"
@@ -470,20 +485,32 @@ instance Declaration Enumerator where
   getVarDecl (Enumerator ide _ enumty _) =
     VarDecl
       (VarName ide Nothing)
-      (DeclAttrs False NoStorage [])
+      (DeclAttrs noFunctionAttrs NoStorage [])
       (DirectType (typeOfEnumDef enumty) noTypeQuals noAttributes)
 
 -- | Type qualifiers: constant, volatile and restrict
-data TypeQuals = TypeQuals { constant :: Bool, volatile :: Bool, restrict :: Bool }
+data TypeQuals = TypeQuals { constant :: Bool, volatile :: Bool,
+                             restrict :: Bool, atomic :: Bool,
+                             nullable :: Bool, nonnull  :: Bool }
     deriving (Typeable, Data)
+
+instance Eq TypeQuals where
+ (==) (TypeQuals c1 v1 r1 a1 n1 nn1) (TypeQuals c2 v2 r2 a2 n2 nn2) =
+    c1 == c2 && v1 == v2 && r1 == r2 && a1 == a2 && n1 == n2 && nn1 == nn2
+
+instance Ord TypeQuals where
+  (<=) (TypeQuals c1 v1 r1 a1 n1 nn1) (TypeQuals c2 v2 r2 a2 n2 nn2) =
+    c1 <= c2 && v1 <= v2 && r1 <= r2 && a1 <= a2 && n1 <= n2 && nn1 <= nn2
+
 
 -- | no type qualifiers
 noTypeQuals :: TypeQuals
-noTypeQuals = TypeQuals False False False
+noTypeQuals = TypeQuals False False False False False False
 
 -- | merge (/&&/) two type qualifier sets
 mergeTypeQuals :: TypeQuals -> TypeQuals -> TypeQuals
-mergeTypeQuals (TypeQuals c1 v1 r1) (TypeQuals c2 v2 r2) = TypeQuals (c1 && c2) (v1 && v2) (r1 && r2)
+mergeTypeQuals (TypeQuals c1 v1 r1 a1 n1 nn1) (TypeQuals c2 v2 r2 a2 n2 nn2) =
+  TypeQuals (c1 && c2) (v1 && v2) (r1 && r2) (a1 && a2) (n1 && n2) (nn1 && nn2)
 
 -- * initializers
 
@@ -560,24 +587,19 @@ type Stmt = CStat
 type Expr = CExpr
 -- GENERATED START
 
-
 instance CNode TagDef where
         nodeInfo (CompDef d) = nodeInfo d
         nodeInfo (EnumDef d) = nodeInfo d
-
 instance Pos TagDef where
         posOf x = posOf (nodeInfo x)
-
 
 instance CNode IdentDecl where
         nodeInfo (Declaration d) = nodeInfo d
         nodeInfo (ObjectDef d) = nodeInfo d
         nodeInfo (FunctionDef d) = nodeInfo d
         nodeInfo (EnumeratorDef d) = nodeInfo d
-
 instance Pos IdentDecl where
         posOf x = posOf (nodeInfo x)
-
 
 instance CNode DeclEvent where
         nodeInfo (TagEvent d) = nodeInfo d
@@ -586,100 +608,73 @@ instance CNode DeclEvent where
         nodeInfo (LocalEvent d) = nodeInfo d
         nodeInfo (TypeDefEvent d) = nodeInfo d
         nodeInfo (AsmEvent d) = nodeInfo d
-
 instance Pos DeclEvent where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode Decl where
         nodeInfo (Decl _ n) = n
-
 instance Pos Decl where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode ObjDef where
         nodeInfo (ObjDef _ _ n) = n
-
 instance Pos ObjDef where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode FunDef where
         nodeInfo (FunDef _ _ n) = n
-
 instance Pos FunDef where
         posOf x = posOf (nodeInfo x)
-
 
 instance CNode ParamDecl where
         nodeInfo (ParamDecl _ n) = n
         nodeInfo (AbstractParamDecl _ n) = n
-
 instance Pos ParamDecl where
         posOf x = posOf (nodeInfo x)
-
 
 instance CNode MemberDecl where
         nodeInfo (MemberDecl _ _ n) = n
         nodeInfo (AnonBitField _ _ n) = n
-
 instance Pos MemberDecl where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode TypeDef where
         nodeInfo (TypeDef _ _ _ n) = n
-
 instance Pos TypeDef where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode TypeDefRef where
         nodeInfo (TypeDefRef _ _ n) = n
-
 instance Pos TypeDefRef where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode CompTypeRef where
         nodeInfo (CompTypeRef _ _ n) = n
-
 instance Pos CompTypeRef where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode EnumTypeRef where
         nodeInfo (EnumTypeRef _ n) = n
-
 instance Pos EnumTypeRef where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode CompType where
         nodeInfo (CompType _ _ _ _ n) = n
-
 instance Pos CompType where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode EnumType where
         nodeInfo (EnumType _ _ _ n) = n
-
 instance Pos EnumType where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode Enumerator where
         nodeInfo (Enumerator _ _ _ n) = n
-
 instance Pos Enumerator where
         posOf x = posOf (nodeInfo x)
 
-
 instance CNode Attr where
         nodeInfo (Attr _ _ n) = n
-
 instance Pos Attr where
         posOf x = posOf (nodeInfo x)
 -- GENERATED STOP

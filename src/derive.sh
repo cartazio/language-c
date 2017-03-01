@@ -3,20 +3,12 @@ set -o errexit
 DERIVE=./derive/Derive
 DERIVE_PATCH_VERSION=2.4.2
 if ghc-pkg find-module Data.DeriveMain | grep -q '^[ ]*derive-'; then
-    (cd derive && ghc -O --make -o Derive Derive.hs)
+    (cd derive && make)
 fi
 if [ ! -e ${DERIVE} ] ; then
-	echo "Warning: Could not find ${DERIVE}, and derive >= 2.5 is not installed">&2
-        echo "Press Enter to download, patch and build derive-${DERIVE_PATCH_VERSION}.">&2
-	read
-	cabal unpack derive-${DERIVE_PATCH_VERSION}
-	pushd derive-${DERIVE_PATCH_VERSION}
-	patch -p1 < ../derive-${DERIVE_PATCH_VERSION}.patch
-	cabal configure
-	cabal build
-	popd
-	echo "Installing ${DERIVE}"
-	cp derive-${DERIVE_PATCH_VERSION}/dist/build/derive/derive "${DERIVE}"
+    echo "Warning: Could not find ${DERIVE}, and derive >= 2.5 is not installed">&2
+    echo "Please install derive 2.5.* (tested with 2.5.23)" >&2
+    exit 1
 fi
 TARGETS="Language/C/Syntax/AST.hs Language/C/Analysis/SemRep.hs"
 for T in ${TARGETS} ; do

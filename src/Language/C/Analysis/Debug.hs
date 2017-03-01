@@ -25,7 +25,6 @@ import Language.C.Analysis.NameSpaceMap
 
 import Language.C.Data
 import Language.C.Pretty
-import Language.C.Syntax
 
 import Text.PrettyPrint.HughesPJ
 import Data.Map (Map) ; import qualified Data.Map as Map
@@ -34,12 +33,12 @@ prettyAssocs :: (Pretty k, Pretty v) => String -> [(k,v)] -> Doc
 prettyAssocs label = prettyAssocsWith label pretty pretty
 prettyAssocsWith :: String -> (k -> Doc) -> (v -> Doc) -> [(k,v)] -> Doc
 prettyAssocsWith label prettyKey prettyVal theMap =
-    text label $$ (nest 8) (vcat $ map prettyEntry theMap)
+    text label $$ nest 8 (vcat $ map prettyEntry theMap)
     where
     prettyEntry (k,v) = prettyKey k <+> text " ~> " <+> prettyVal v
 
 instance Pretty DefTable where
-    pretty dt = text "DefTable" $$ (nest 4 $ vcat defMaps)
+    pretty dt = text "DefTable" $$ nest 4 (vcat defMaps)
         where
         defMaps = [ prettyNSMap "idents" identDecls
                   , prettyNSMap "tags" tagDecls
@@ -125,9 +124,9 @@ instance Pretty ParamDecl where
         text "abstract" <+> pretty declattrs <+> pretty name <+>
              text "::" <+> pretty ty
 instance Pretty DeclAttrs where
-    pretty (DeclAttrs inline storage attrs) =
-        (if inline then (text "inline") else empty) <+>
-        (hsep $ [ pretty storage, pretty attrs])
+    pretty (DeclAttrs fun_attrs storage attrs) =
+        hsep [ pretty fun_attrs, pretty storage, pretty attrs]
+
 instance Pretty Type where
   pretty ty = pretty (exportTypeDecl ty)
 instance Pretty TypeQuals where
@@ -136,10 +135,11 @@ instance Pretty TypeQuals where
                                     | otherwise      = empty
 
 instance Pretty CompType where
-    pretty (CompType sue_ref tag members attrs node) =
+    pretty (CompType sue_ref tag members attrs _node) =
         (text.show) tag <+> pretty sue_ref <+>
         braces (terminateSemi members) <+>
         pretty attrs
+
 instance Pretty MemberDecl where
     pretty (MemberDecl (VarDecl name declattrs ty) bitfield _) =
         pretty declattrs <+> pretty name <+> text "::" <+> pretty ty <+>
@@ -151,11 +151,16 @@ instance Pretty EnumType where
     pretty (EnumType sue_ref enumerators attrs _) =
       text "enum" <+> pretty sue_ref <+> braces (terminateSemi_ $ map prettyEnr enumerators) <+> pretty attrs
       where
-      prettyEnr (Enumerator ident expr enumty _) = pretty ident <+> text " = " <+> pretty expr
+      prettyEnr (Enumerator ident expr _enumty _) = pretty ident <+> text " = " <+> pretty expr
 
 instance Pretty Enumerator where
     pretty (Enumerator ident expr enumty _) = text "<" <> text "econst" <+> pretty (sueRef enumty) <> text ">" <+>
                                               pretty ident <+> text " = " <+> pretty expr
+
+instance Pretty FunctionAttrs where
+    pretty fattrs = hsep [pIf isInline "inline", pIf isNoreturn "_Noreturn"]
+      where
+        pIf isMatch txt = if isMatch fattrs then text txt else empty
 
 instance Pretty Storage where
     pretty NoStorage = empty

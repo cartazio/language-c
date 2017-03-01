@@ -92,7 +92,7 @@ main = do
             Unknown reason -> usage $ "Could not process arguments: " ++ reason
   output config file ast
 
-runP :: (CNode a, Pretty a, Data a) => CTestConfig -> P a -> String -> IO ()
+runP :: (Pretty a, Data a) => CTestConfig -> P a -> String -> IO ()
 runP config parser str =
   do
     ast <- either bailOut return $ pResult

@@ -22,10 +22,9 @@ equivTestTemplate,runEquivTest,
 compileTestTemplate, runCompileTest,
 ) where
 import Control.Monad.State
-import Control.Monad.Instances
 import Data.List
 
-import System.Cmd
+import System.Process
 import System.Directory 
 import System.Exit
 import System.FilePath (takeBaseName, takeExtension)
@@ -284,4 +283,4 @@ getContextInfo pos = do
       (pre,ctxLine : post) -> showContext [last pre] ctxLine (take 1 post)
   where
     showContext preCtx ctx postCtx = unlines $ preCtx ++ [ctx, replicate (posColumn pos - 1) ' ' ++ "^^^"] ++ postCtx
-                    
+

@@ -53,20 +53,20 @@ module Language.C.Analysis.TravMonad (
 )
 where
 import Language.C.Data
-import Language.C.Data.Ident
 import Language.C.Data.RList as RList
-import Language.C.Syntax
 
 import Language.C.Analysis.Builtins
 import Language.C.Analysis.SemError
 import Language.C.Analysis.SemRep
+import Language.C.Analysis.TypeUtils (sameType)
 import Language.C.Analysis.DefTable hiding (enterBlockScope,leaveBlockScope,
                                             enterFunctionScope,leaveFunctionScope)
 import qualified Language.C.Analysis.DefTable as ST
 
-import Data.IntMap (insert, lookup)
+import Data.IntMap (insert)
 import Data.Maybe
-import Control.Monad(liftM)
+import Control.Applicative (Applicative(..))
+import Control.Monad (liftM, ap)
 import Prelude hiding (lookup)
 
 class (Monad m) => MonadName m where
@@ -138,9 +138,16 @@ handleEnumeratorDef enumerator = do
     return ()
 
 handleTypeDef :: (MonadTrav m) => TypeDef -> m ()
-handleTypeDef typeDef@(TypeDef ident _ _ _) = do
+handleTypeDef typeDef@(TypeDef ident t1 _ _) = do
     redecl <- withDefTable $ defineTypeDef ident typeDef
-    checkRedef (show ident) typeDef redecl
+    -- C11 6.7/3 If an identifier has no linkage, there shall be no more than
+    -- one declaration of the identifier (in a declarator or type specifier)
+    -- with the same scope and in the same name space, except that: a typedef
+    -- name may be redefined to denote the same type as it currently does,
+    -- provided that type is not a variably modified type;
+    case redecl of
+      Redeclared (Left (TypeDef _ t2 _ _)) | sameType t1 t2 -> return ()
+      _ -> checkRedef (show ident) typeDef redecl
     handleDecl (TypeDefEvent typeDef)
     return ()
 
@@ -153,13 +160,13 @@ redefErr name lvl new old kind =
   throwTravError $ redefinition lvl (show name) kind (nodeInfo new) (nodeInfo old)
 
 -- TODO: unused
-checkIdentTyRedef :: (MonadCError m) => IdentEntry -> (DeclarationStatus IdentEntry) -> m ()
-checkIdentTyRedef (Right decl) status = checkVarRedef decl status
-checkIdentTyRedef (Left tydef) (KindMismatch old_def) =
+_checkIdentTyRedef :: (MonadCError m) => IdentEntry -> (DeclarationStatus IdentEntry) -> m ()
+_checkIdentTyRedef (Right decl) status = checkVarRedef decl status
+_checkIdentTyRedef (Left tydef) (KindMismatch old_def) =
   redefErr (identOfTypeDef tydef) LevelError tydef old_def DiffKindRedecl
-checkIdentTyRedef (Left tydef) (Redeclared old_def) =
+_checkIdentTyRedef (Left tydef) (Redeclared old_def) =
   redefErr (identOfTypeDef tydef) LevelError tydef old_def DuplicateDef
-checkIdentTyRedef (Left _tydef) _ = return ()
+_checkIdentTyRedef (Left _tydef) _ = return ()
 
 -- Check whether it is ok to declare a variable already in scope
 checkVarRedef :: (MonadCError m) => IdentDecl -> (DeclarationStatus IdentEntry) -> m ()
@@ -184,19 +191,19 @@ checkVarRedef def redecl =
         _ -> return ()
     where
     redefVarErr old_def kind = redefErr (declIdent def) LevelError def old_def kind
-    linkageErr def old_def =
-        case (declLinkage def, declLinkage old_def) of
-            (NoLinkage, _) -> redefErr (declIdent def) LevelError  def old_def NoLinkageOld
-            otherwise      -> redefErr (declIdent def) LevelError  def old_def DisagreeLinkage
+    linkageErr new_def old_def =
+        case (declLinkage new_def, declLinkage old_def) of
+            (NoLinkage, _) -> redefErr (declIdent new_def) LevelError new_def old_def NoLinkageOld
+            _              -> redefErr (declIdent new_def) LevelError new_def old_def DisagreeLinkage
 
     new_ty = declType def
     canBeOverwritten (Declaration _) = True
     canBeOverwritten (ObjectDef od)  = isTentative od
     canBeOverwritten _               = False
-    agreeOnLinkage def old_def
+    agreeOnLinkage new_def old_def
         | declStorage old_def == FunLinkage InternalLinkage = True
-        | not (hasLinkage $ declStorage def) || not (hasLinkage $ declStorage old_def) = False
-        | (declLinkage def) /= (declLinkage old_def) = False
+        | not (hasLinkage $ declStorage new_def) || not (hasLinkage $ declStorage old_def) = False
+        | (declLinkage new_def) /= (declLinkage old_def) = False
         | otherwise = True
 
 -- | handle variable declarations (external object declarations and function prototypes)
@@ -250,7 +257,7 @@ handleObjectDef :: (MonadTrav m) => Bool -> Ident -> ObjDef -> m ()
 handleObjectDef local ident obj_def = do
     let def = ObjectDef obj_def
     redecl <- withDefTable $
-              defineScopedIdentWhen (\old -> shouldOverride def old) ident def
+              defineScopedIdentWhen (shouldOverride def) ident def
     checkVarRedef def redecl
     handleDecl ((if local then LocalEvent else DeclEvent) def)
     where
@@ -355,7 +362,7 @@ handleTravError a = liftM Just a `catchTravError` (\e -> recordError e >> return
 
 -- | check wheter non-recoverable errors occurred
 hadHardErrors :: [CError] -> Bool
-hadHardErrors = (not . null . filter isHardError)
+hadHardErrors = any isHardError
 
 -- | raise an error caused by a malformed AST
 astError :: (MonadCError m) => NodeInfo -> String -> m a
@@ -403,6 +410,13 @@ withExtDeclHandler :: Trav s a -> (DeclEvent -> Trav s ()) -> Trav s a
 withExtDeclHandler action handler =
     do modify $ \st -> st { doHandleExtDecl = handler }
        action
+
+instance Functor (Trav s) where
+    fmap = liftM
+
+instance Applicative (Trav s) where
+    pure  = return
+    (<*>) = ap
 
 instance Monad (Trav s) where
     return x  = Trav (\s -> Right (x,s))

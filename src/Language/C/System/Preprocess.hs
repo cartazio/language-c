@@ -12,7 +12,7 @@
 module Language.C.System.Preprocess (
     Preprocessor(..),
     CppOption(..),
-    CppArgs(..),rawCppArgs,addCppOption,addExtraOption,
+    CppArgs(..),rawCppArgs,addCppOption,addExtraOption,cppFile,
     runPreprocessor,
     isPreprocessed,
 )
@@ -21,7 +21,6 @@ import Language.C.Data.InputStream
 import System.Exit
 import System.Directory
 import System.FilePath
-import System.Environment
 import System.IO
 import Control.Exception
 import Control.Monad
@@ -58,6 +57,7 @@ data CppArgs = CppArgs {
 cppFile :: FilePath -> CppArgs
 cppFile input_file = CppArgs { cppOptions = [], extraOptions = [], cppTmpDir = Nothing, inputFile = input_file, outputFile = Nothing }
 
+
 -- | use the given preprocessor arguments without analyzing them
 rawCppArgs :: [String] -> FilePath -> CppArgs
 rawCppArgs opts input_file =
@@ -66,16 +66,16 @@ rawCppArgs opts input_file =
 -- | add a typed option to the given preprocessor arguments
 addCppOption :: CppArgs -> CppOption -> CppArgs
 addCppOption cpp_args opt =
-    cpp_args { cppOptions = opt : (cppOptions cpp_args) }
+    cpp_args { cppOptions = opt : cppOptions cpp_args }
 
 -- | add a string option to the given preprocessor arguments
 addExtraOption :: CppArgs -> String -> CppArgs
 addExtraOption cpp_args extra =
-    cpp_args { extraOptions = extra : (extraOptions cpp_args) }
+    cpp_args { extraOptions = extra : extraOptions cpp_args }
 
 -- | run the preprocessor and return an 'InputStream' if preprocesssing succeeded
 runPreprocessor :: (Preprocessor cpp) => cpp -> CppArgs -> IO (Either ExitCode InputStream)
-runPreprocessor cpp cpp_args = do
+runPreprocessor cpp cpp_args =
     bracket
         getActualOutFile
         -- remove outfile if it was temporary

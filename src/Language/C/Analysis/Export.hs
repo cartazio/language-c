@@ -69,8 +69,8 @@ exportType ty = exportTy [] ty
         let fun_declr = CFunDeclr (Right ([],False)) (exportAttrs attrs) ni
         in  exportTy (fun_declr : dd) ity
     exportTy dd (TypeDefType (TypeDefRef ty_ident _ node) quals attrs) =
-        let declspecs =    [CTypeSpec (CTypeDef ty_ident node)]
-                        ++ map CTypeQual (exportTypeQualsAttrs quals attrs)
+        let declspecs =   CTypeSpec (CTypeDef ty_ident node)
+                        : map CTypeQual (exportTypeQualsAttrs quals attrs)
         in (declspecs, reverse dd)
     exportTy dd (DirectType ity quals attrs) =
         let declspecs =    map CTypeQual (exportTypeQualsAttrs quals attrs)
@@ -113,6 +113,8 @@ exportIntType ty =
       TyUShort  -> [CUnsigType ni, CShortType ni]
       TyInt     -> [CIntType ni]
       TyUInt    -> [CUnsigType ni, CIntType ni]
+      TyInt128  -> [CInt128Type ni]
+      TyUInt128 -> [CUnsigType ni, CInt128Type ni]
       TyLong    -> [CLongType ni]
       TyULong   -> [CUnsigType ni,CLongType ni]
       TyLLong   -> [CLongType ni, CLongType ni]
@@ -185,10 +187,17 @@ exportParamDecl paramdecl =
     in CDecl specs [(Just declr, Nothing , Nothing) ] (nodeInfo paramdecl)
 
 exportDeclAttrs :: DeclAttrs -> [CDeclSpec]
-exportDeclAttrs (DeclAttrs inline storage attrs) =
-       (if inline then [CTypeQual (CInlineQual ni)] else [])
-    ++ map (CStorageSpec) (exportStorage storage)
+exportDeclAttrs (DeclAttrs fun_attrs storage attrs) =
+       map CFunSpec (exportFunAttrs fun_attrs)
+    ++ map CStorageSpec (exportStorage storage)
     ++ map (CTypeQual . CAttrQual) (exportAttrs attrs)
+
+-- | export function attributes to C function specifiers
+exportFunAttrs :: FunctionAttrs -> [CFunSpec]
+exportFunAttrs fattrs = catMaybes [inlQual, noretQual]
+  where
+    inlQual = if isInline fattrs then Just (CInlineQual ni) else Nothing
+    noretQual = if isNoreturn fattrs then Just (CNoreturnQual ni) else Nothing
 
 -- | express storage in terms of storage specifiers.
 --
@@ -216,7 +225,7 @@ exportAttrs = map exportAttr where
 
 fromDirectType :: Type -> TypeName
 fromDirectType (DirectType ty _ _) = ty
-fromDirectType (TypeDefType (TypeDefRef _ ref _) _ _) = maybe (error "undefined typeDef") fromDirectType ref
+fromDirectType (TypeDefType (TypeDefRef _ ty _) _ _) = fromDirectType ty
 fromDirectType _ = error "fromDirectType"
 
 ni :: NodeInfo

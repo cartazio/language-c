@@ -27,8 +27,8 @@ arithmeticConversion (TyIntegral _) t2@(TyFloating _) = Just t2
 arithmeticConversion (TyIntegral t1) (TyIntegral t2) =
   Just $ TyIntegral $ intConversion t1 t2
 arithmeticConversion (TyEnum _) (TyEnum _) = Just $ TyIntegral TyInt
-arithmeticConversion (TyEnum _) t2 = Just $ t2
-arithmeticConversion t1 (TyEnum _) = Just $ t1
+arithmeticConversion (TyEnum _) t2 = Just t2
+arithmeticConversion t1 (TyEnum _) = Just t1
 arithmeticConversion _ _ = Nothing
 
 floatConversion :: FloatType -> FloatType -> FloatType

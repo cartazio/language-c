@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances  #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, FlexibleContexts #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Language.C.Pretty
@@ -18,7 +18,7 @@ module Language.C.Pretty (
     -- * Testing
     prettyUsingInclude
 ) where
-import Data.List (partition,nub,isSuffixOf)
+import Data.List (isSuffixOf)
 import qualified Data.Set as Set
 import Text.PrettyPrint.HughesPJ
 import Debug.Trace {- for warnings -}
@@ -79,9 +79,9 @@ prettyUsingInclude :: CTranslUnit -> Doc
 prettyUsingInclude (CTranslUnit edecls _) =
   includeWarning headerFiles
     $$
-  (vcat $ map (either includeHeader pretty) mappedDecls)
+  vcat (map (either includeHeader pretty) mappedDecls)
   where
-    (headerFiles,mappedDecls) = foldr addDecl (Set.empty,[]) $ map tagIncludedDecls edecls
+    (headerFiles,mappedDecls) = foldr (addDecl . tagIncludedDecls) (Set.empty,[]) edecls
     tagIncludedDecls edecl | maybe False isHeaderFile (fileOfNode edecl) = Left ((posFile . posOf) edecl)
                            | otherwise = Right edecl
     addDecl decl@(Left headerRef) (headerSet, ds)
@@ -104,7 +104,7 @@ instance Pretty CFunDef where
     pretty (CFunDef declspecs declr decls stat _) =          -- Example:
             hsep (map pretty declspecs)                      -- __attribute__((noreturn)) static long
         <+> pretty declr                                     -- foo(b)
-        $+$ (ii . vcat . map (<> semi) . map pretty) decls   --     register long b;
+        $+$ (ii . vcat . map ((<> semi) . pretty)) decls     --     register long b;
         $$ prettyPrec (-1) stat                              -- {  ...
                                                              -- }
 
@@ -203,21 +203,31 @@ instance Pretty CDecl where
                 attrlistP (getAttrs declr) <+>
                 maybeP ((text "=" <+>) . pretty) initializer
             checked_specs =
-                case any isAttrAfterSUE  (zip specs (tail specs)) of
-                    True -> trace
-                              ("Warning: AST Invariant violated: __attribute__ specifier following struct/union/enum:"++
-                               (show $ map pretty specs))
-                            specs
-                    False -> specs
+                if any isAttrAfterSUE  (zip specs (tail specs))
+                    then trace
+                           ("Warning: AST Invariant violated: __attribute__ specifier following struct/union/enum:" ++
+                            show (map pretty specs))
+                           specs
+                    else specs
             isAttrAfterSUE (CTypeSpec ty,CTypeQual (CAttrQual _)) = isSUEDef ty
             isAttrAfterSUE _ = False
             getAttrs Nothing = []
             getAttrs (Just (CDeclr _ _ _ cattrs _)) = cattrs
+    pretty (CStaticAssert expr str _) =
+      text "_Static_assert" <> parens (hsep (punctuate comma [pretty expr, pretty str]))
 
 instance Pretty CDeclSpec where
     pretty (CStorageSpec sp) = pretty sp
     pretty (CTypeSpec sp) = pretty sp
     pretty (CTypeQual qu) = pretty qu
+    pretty (CFunSpec fs) = pretty fs
+    pretty (CAlignSpec sa) = pretty sa
+
+instance Pretty CAlignSpec where
+    pretty (CAlignAsType decl _) =
+        text "_Alignas" <> parens (pretty decl)
+    pretty (CAlignAsExpr expr _) =
+        text "_Alignas" <> parens (pretty expr)
 
 instance Pretty CStorageSpec where
     pretty (CAuto _) = text "auto"
@@ -225,7 +235,7 @@ instance Pretty CStorageSpec where
     pretty (CStatic _) = text "static"
     pretty (CExtern _) = text "extern"
     pretty (CTypedef _) = text "typedef"
-    pretty (CThread _) = text "__thread"
+    pretty (CThread _) = text "_Thread_local"
 
 instance Pretty CTypeSpec where
     pretty (CVoidType _)        = text "void"
@@ -239,20 +249,29 @@ instance Pretty CTypeSpec where
     pretty (CUnsigType _)       = text "unsigned"
     pretty (CBoolType _)        = text "_Bool"
     pretty (CComplexType _)     = text "_Complex"
+    pretty (CInt128Type _)      = text "__int128"
     pretty (CSUType union _)    = pretty union
     pretty (CEnumType enum _)   = pretty enum
     pretty (CTypeDef ident _)   = identP ident
     pretty (CTypeOfExpr expr _) =
-        text "typeof" <> text "(" <> pretty expr <> text ")"
+        text "typeof" <> parens (pretty expr)
     pretty (CTypeOfType decl _) =
-        text "typeof" <> text "(" <> pretty decl <> text ")"
+        text "typeof" <> parens (pretty decl)
+    pretty (CAtomicType decl _) =
+        text "_Atomic" <> parens (pretty decl)
 
 instance Pretty CTypeQual where
     pretty (CConstQual _) = text "const"
     pretty (CVolatQual _) = text "volatile"
     pretty (CRestrQual _) = text "__restrict"
-    pretty (CInlineQual _) = text "inline"
+    pretty (CAtomicQual _) = text "_Atomic"
     pretty (CAttrQual a)  = attrlistP [a]
+    pretty (CNullableQual _) = text "_Nullable"
+    pretty (CNonnullQual _) = text "_Nonnull"
+
+instance Pretty CFunSpec where
+    pretty (CInlineQual _) = text "inline"
+    pretty (CNoreturnQual _) = text "_Noreturn"
 
 instance Pretty CStructUnion where
     pretty (CStruct tag ident Nothing cattrs _) = pretty tag <+> attrlistP cattrs <+> maybeP identP ident
@@ -260,7 +279,7 @@ instance Pretty CStructUnion where
         pretty tag <+> attrlistP cattrs <+> maybeP identP ident <+> text "{ }"
     pretty (CStruct tag ident (Just decls) cattrs _) = vcat [
         pretty tag <+> attrlistP cattrs <+> maybeP identP ident <+> text "{",
-        ii $ sep (map (<> semi) (map pretty decls)),
+        ii $ sep (map ((<> semi) . pretty) decls),
         text "}"]
 
 instance Pretty CStructTag where
@@ -422,22 +441,26 @@ instance Pretty CExpr where
 
     -- unary_expr :- && ident  {- address of label -}
     prettyPrec _p (CLabAddrExpr ident _) = text "&&" <> identP ident
-
+    prettyPrec _p (CGenericSelection expr assoc_list _) =
+      text "_Generic" <> (parens.hsep.punctuate comma) (pretty expr : map pAssoc assoc_list)
+      where
+        pAssoc (mty, expr1) = maybe (text "default") pretty mty <> text ":" <+> pretty expr1
     prettyPrec _p (CBuiltinExpr builtin) = pretty builtin
 
 instance Pretty CBuiltin where
     pretty (CBuiltinVaArg expr ty_name _) =
         text "__builtin_va_arg" <+>
-        (parens $ pretty expr <> comma <+> pretty ty_name)
+        parens (pretty expr <> comma <+> pretty ty_name)
     -- The first desig has to be a member field.
     pretty (CBuiltinOffsetOf ty_name (CMemberDesig field1 _ : desigs) _) =
         text "__builtin_offsetof" <+>
-        (parens $ pretty ty_name <> comma <+> identP field1 <> hcat (map pretty desigs) )
+        parens (pretty ty_name <> comma <+> identP field1 <> hcat (map pretty desigs) )
     pretty (CBuiltinOffsetOf _ty_name otherDesigs _) =
-        error $ "Inconsistent AST: Cannot interpret designators in offsetOf: "++ show (hcat$ map pretty otherDesigs)
+        error $ "Inconsistent AST: Cannot interpret designators in offsetOf: " ++
+                show (hcat $ map pretty otherDesigs)
     pretty (CBuiltinTypesCompatible ty1 ty2 _) =
         text "__builtin_types_compatible_p" <+>
-        (parens $ pretty ty1 <> comma <+> pretty ty2)
+        parens (pretty ty1 <> comma <+> pretty ty2)
 
 instance Pretty CAssignOp where
   pretty op = text $ case op of

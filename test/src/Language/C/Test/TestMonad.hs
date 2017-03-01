@@ -22,6 +22,7 @@ dbgMsg,addTestM,liftIOCatched,exitTest,errorOnInit,time,withTempFile_,withTempFi
 defaultMain,
 )
 where
+import Control.Applicative (Applicative (..))
 import Control.Exception (catch)
 import Control.Monad.Cont
 import Control.Monad.Reader
@@ -67,7 +68,7 @@ setTestExit exit testData = testData { testExit = exit }
 -- ==============
 -- = Test Monad =
 -- ==============
-newtype TestMonad a = TM { unTM :: ContT () (ReaderT TestConfig (StateT TestData IO)) a } deriving (Monad)
+newtype TestMonad a = TM { unTM :: ContT () (ReaderT TestConfig (StateT TestData IO)) a } deriving (Monad, Applicative, Functor)
 instance MonadReader TestConfig TestMonad where
   ask = TM ask
   local f = TM . local f . unTM

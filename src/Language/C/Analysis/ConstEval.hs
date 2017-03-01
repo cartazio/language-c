@@ -8,7 +8,7 @@ import qualified Data.Map as Map
 import Language.C.Syntax.AST
 import Language.C.Syntax.Constants
 import {-# SOURCE #-} Language.C.Analysis.AstAnalysis (tExpr, ExprSide(..))
-import Language.C.Analysis.Debug
+import Language.C.Analysis.Debug ()
 import Language.C.Analysis.DeclAnalysis
 import Language.C.Analysis.DefTable
 import Language.C.Data
@@ -46,7 +46,7 @@ sizeofType md _ (DirectType (TyComp ctr) _ _) = compSize md ctr
 sizeofType md _ (DirectType (TyEnum _) _ _) = return $ iSize md TyInt
 sizeofType md _ (DirectType (TyBuiltin b) _ _) = return $ builtinSize md b
 sizeofType md _ (PtrType _ _ _)  = return $ ptrSize md
-sizeofType md n (ArrayType bt (UnknownArraySize _) _ _) = return $ ptrSize md
+sizeofType md _ (ArrayType _ (UnknownArraySize _) _ _) = return $ ptrSize md
 sizeofType md n (ArrayType bt (ArraySize _ sz) _ _) =
   do sz' <- constEval md Map.empty sz
      case sz' of
@@ -58,7 +58,7 @@ sizeofType md n (ArrayType bt (ArraySize _ sz) _ _) =
             astError (nodeInfo sz) $
             "array size is not a constant: " ++ (render . pretty) sz
             -}
-sizeofType md n (TypeDefType (TypeDefRef _ (Just t) _) _ _) = sizeofType md n t
+sizeofType md n (TypeDefType (TypeDefRef _ t _) _ _) = sizeofType md n t
 sizeofType md _ (FunctionType _ _) = return $ ptrSize md
 sizeofType _ n t = astError (nodeInfo n) $
                  "can't find size of type: " ++ (render . pretty) t
@@ -71,9 +71,9 @@ alignofType md _ (DirectType (TyComplex ft) _ _) = return $ fAlign md ft
 alignofType md _ (DirectType (TyEnum _) _ _) = return $ iAlign md TyInt
 alignofType md _ (DirectType (TyBuiltin b) _ _) = return $ builtinAlign md b
 alignofType md _ (PtrType _ _ _)  = return $ ptrAlign md
-alignofType md n (ArrayType bt (UnknownArraySize _) _ _) = return $ ptrAlign md
-alignofType md n (ArrayType bt (ArraySize _ sz) _ _) = alignofType md n bt
-alignofType md n (TypeDefType (TypeDefRef _ (Just t) _) _ _) = alignofType md n t
+alignofType md _ (ArrayType _ (UnknownArraySize _) _ _) = return $ ptrAlign md
+alignofType md n (ArrayType bt (ArraySize _ _) _ _) = alignofType md n bt
+alignofType md n (TypeDefType (TypeDefRef _ t _) _ _) = alignofType md n t
 alignofType _ n t = astError (nodeInfo n) $
                  "can't find alignment of type: " ++ (render . pretty) t
 
@@ -192,7 +192,7 @@ constEval md _ (CAlignofType d ni) =
   do t <- analyseTypeDecl d
      sz <- alignofType md d t
      intExpr ni sz
-constEval md env e@(CVar i _) | Map.member i env =
+constEval _ env e@(CVar i _) | Map.member i env =
   return $ fromMaybe e $ Map.lookup i env
 constEval md env e@(CVar i _) =
   do t <- tExpr [] RValue e

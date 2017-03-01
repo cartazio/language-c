@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, PatternGuards #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Language.C.Data.Position
@@ -49,8 +49,6 @@ instance Show Position where
   show NoPosition               = "<no file>"
   show BuiltinPosition          = "<builtin>"
   show InternalPosition         = "<internal>"
-
-{-# DEPRECATED posColumn "column number information is inaccurate in presence of macros - do not rely on it." #-}
 
 -- | @position absoluteOffset fileName lineNumber columnNumber@ initializes a @Position@ using the given arguments
 position :: Int -> String -> Int -> Int -> Position
@@ -121,4 +119,4 @@ adjustPos _ _ p                           = p
 -- | advance just the offset
 incOffset :: Position -> Int -> Position
 incOffset (Position o f r c) n = Position (o + n) f r c
-incOffset p n                  = p
+incOffset p _                  = p

@@ -1,8 +1,11 @@
+PROJECT_DIR=../../..
+OPT=-O2
+include $(PROJECT_DIR)/test/config.mk
 all:
-	ghc --make -O2  -prof Test.hs
+	$(HC) $(HFLAGS) --make Test.hs
 	./Test > test.c
 	gcc -o test_out test.c
 	./test_out > test.out
 	diff test.expect test.out
 clean:
-	rm -rf Test.o Test.hi Test test_out
+	rm -rf Test test.c test_out *.o *.hi *.dyn_hi *.dyn_o *.out

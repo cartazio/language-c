@@ -1,10 +1,10 @@
 module Language.C.Analysis.Builtins (builtins) where
 
-import Language.C.Data.Ident
-import Language.C.Data.Node
 import Language.C.Analysis.DefTable
 import Language.C.Analysis.SemRep
 import Language.C.Analysis.TypeUtils
+import Language.C.Data.Ident
+import Language.C.Data.Node
 
 builtins :: DefTable
 builtins = foldr doIdent (foldr doTypeDef emptyDefTable typedefs) idents
@@ -13,10 +13,10 @@ builtins = foldr doIdent (foldr doTypeDef emptyDefTable typedefs) idents
         dName     s = VarName (builtinIdent s) Nothing
         param ty    = ParamDecl (VarDecl
                                  NoName
-                                 (DeclAttrs False (Auto False) [])
+                                 (DeclAttrs noFunctionAttrs (Auto False) [])
                                  ty) undefNode
-        fnAttrs     = DeclAttrs False (FunLinkage ExternalLinkage) []
-        varAttrs    = DeclAttrs False (Static InternalLinkage False) []
+        fnAttrs     = DeclAttrs noFunctionAttrs (FunLinkage ExternalLinkage) []
+        varAttrs    = DeclAttrs noFunctionAttrs (Static InternalLinkage False) []
         fnType r as = FunctionType (FunType r (map param as) False) noAttributes
         fnType' r as = FunctionType (FunType r (map param as) True) noAttributes
         func n r as = Declaration
@@ -36,6 +36,15 @@ builtins = foldr doIdent (foldr doTypeDef emptyDefTable typedefs) idents
         idents      = [ func "__builtin_expect"
                              (integral TyLong)
                              [integral TyLong, integral TyLong]
+                      , func "__builtin_bswap16"
+                             uint16_tType
+                             [uint16_tType]
+                      , func "__builtin_bswap32"
+                             uint32_tType
+                             [uint32_tType]
+                      , func "__builtin_bswap64"
+                             uint64_tType
+                             [uint64_tType]
                       , func "__builtin_fabs"
                              (floating TyDouble)
                              [floating TyDouble]
