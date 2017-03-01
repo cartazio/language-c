@@ -36,6 +36,9 @@ builtins = foldr doIdent (foldr doTypeDef emptyDefTable typedefs) idents
         idents      = [ func "__builtin_expect"
                              (integral TyLong)
                              [integral TyLong, integral TyLong]
+                      , func "__builtin_bswap16"
+                             uint16_tType
+                             [uint16_tType]
                       , func "__builtin_bswap32"
                              uint32_tType
                              [uint32_tType]

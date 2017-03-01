@@ -6,7 +6,8 @@ TESTS=analysis_enum \
       bug22_file_permission_cpp bug30_preserve_int_repr bug31_pp_if_else \
       bug20130805_nopos \
       bug20160302_int128 \
-      bug20160314_noreturn
+      bug20160314_noreturn \
+      bug20160911_builtin_bswap
 
 #bug20140111_utf8
 all: tests

@@ -3,6 +3,7 @@ module Language.C.Analysis.TypeUtils (
     integral,
     floating,
     simplePtr,
+    uint16_tType,
     uint32_tType,
     uint64_tType,
     size_tType,
@@ -57,6 +58,10 @@ simplePtr t = PtrType t noTypeQuals []
 -- | A pointer with the @const@ qualifier.
 constPtr :: Type -> Type
 constPtr t = PtrType t (noTypeQuals { constant = True }) []
+
+-- | The underlying type for @uint16_t@. For now, this is just @unsigned short@.
+uint16_tType :: Type
+uint16_tType = integral TyUShort
 
 -- | The underlying type for @uint32_t@. For now, this is just @unsigned int@.
 uint32_tType :: Type
@@ -223,7 +228,7 @@ isVariablyModifiedType t =
   case derefTypeDef t of
     TypeDefType {} -> error "impossible: derefTypeDef t returned a TypeDefType"
     DirectType {} -> False
-    PtrType t _ _ -> isVariablyModifiedType t
+    PtrType ptr_ty _ _ -> isVariablyModifiedType ptr_ty
     ArrayType _ sz _ _ -> isVariableArraySize sz
     FunctionType {} -> False
   where
@@ -233,24 +238,24 @@ isVariablyModifiedType t =
 
     isConstantSize :: Expr -> Bool
     isConstantSize (CConst (CIntConst {})) = True
-    isCosntantSize _ = False
+    isConstantSize _ = False
 
 -- | Two types denote the same type if they are identical, ignoring type
 -- definitions, and neither is a variably modified type.
 sameType :: Type -> Type -> Bool
 sameType t1 t2 =
-  not (isVariablyModifiedType t1 || isVariablyModifiedType t2) && sameType' t1 t2
+  not (isVariablyModifiedType t1 || isVariablyModifiedType t2) && sameType'
   where
-    sameType' t1 t2 =
+    sameType' =
       case (derefTypeDef t1, derefTypeDef t2) of
         (TypeDefType {}, _) -> error "impossible: derefTypeDef t1 returned a TypeDefType"
         (_, TypeDefType {}) -> error "impossible: derefTypeDef t2 returned a TypeDefType"
         (DirectType tn1 q1 _a1, DirectType tn2 q2 _a2) ->
           sameTypeName tn1 tn2 && sameQuals q1 q2 {- FIXME: same attributes? -}
-        (PtrType t1 q1 _a1, PtrType t2 q2 _a2) ->
-          sameType t1 t2 && sameQuals q1 q2
-        (ArrayType t1 sz1 q1 _a1, ArrayType t2 sz2 q2 _a2) ->
-          sameType t1 t2 && sameArraySize sz1 sz2 && sameQuals q1 q2
+        (PtrType pt1 q1 _a1, PtrType pt2 q2 _a2) ->
+          sameType pt1 pt2 && sameQuals q1 q2
+        (ArrayType at1 sz1 q1 _a1, ArrayType at2 sz2 q2 _a2) ->
+          sameType at1 at2 && sameArraySize sz1 sz2 && sameQuals q1 q2
         (FunctionType ft1 _a1, FunctionType ft2 _a2) ->
           sameFunType ft1 ft2
         _ -> False
@@ -284,14 +289,15 @@ sameFunType (FunType rt1 params1 isVar1) (FunType rt2 params2 isVar2) =
   sameType rt1 rt2 && sameParamDecls params1 params2 && isVar1 == isVar2
   where
     sameParamDecls :: [ParamDecl] -> [ParamDecl] -> Bool
-    sameParamDecls params1 params2 =
-      length params1 == length params2
-      && and (zipWith sameParamDecl params1 params2)
+    sameParamDecls param_list1 param_list2 =
+      length param_list1 == length param_list2
+      && and (zipWith sameParamDecl param_list1 param_list2)
     -- ignores param identifiers, just compares types
     sameParamDecl :: ParamDecl -> ParamDecl -> Bool
     sameParamDecl p1 p2 = sameType (declType p1) (declType p2)
 sameFunType (FunTypeIncomplete rt1) (FunTypeIncomplete rt2) =
   sameType rt1 rt2
+sameFunType _ _ = False
 
 -- | Returns 'True' iff both array sizes denote the same size.  Assumes that
 -- neither array type was a variably modified type.
@@ -302,7 +308,8 @@ sameArraySize (ArraySize s1 e1) (ArraySize s2 e2) = s1 == s2 && sizeEqual e1 e2
     -- FIXME: Do something better, and combine with sizeEqual in Language.C.Analysis.TypeCheck
     sizeEqual :: Expr -> Expr -> Bool
     sizeEqual (CConst (CIntConst i1 _)) (CConst (CIntConst i2 _)) = i1 == i2
-    sizeEqual e1 e2 = nodeInfo e1 == nodeInfo e2
+    sizeEqual oe1 oe2 = nodeInfo oe1 == nodeInfo oe2
+sameArraySize _ _ = False
 
 sameQuals :: TypeQuals -> TypeQuals -> Bool
 sameQuals (TypeQuals {constant = c1, volatile = v1, restrict = r1})
