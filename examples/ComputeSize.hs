@@ -87,7 +87,7 @@ computeRefClosure all_comps initial_comps =
         | otherwise = error $ "Internal Error: Could not find definition for "++show ref
     fromCompTy _ = Nothing
     fromDirectRefdType (DirectType tyname _ _) = Just tyname
-    fromDirectRefdType (TypeDefType (TypeDefRef _ ty _) _ _) = fromDirectRefdType ty
+    fromDirectRefdType (TypeDefType (TypeDefRef _ ref _) _ _) = (fromDirectRefdType) ref
     fromDirectRefdType (ArrayType ty _ _ _) = fromDirectRefdType ty
     fromDirectRefdType _ = Nothing
 
