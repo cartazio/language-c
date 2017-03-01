@@ -13,6 +13,9 @@ function die() {
 }
 
 if [ ! -d $CTEST_BINDIR ];    then die "Missing environment variable \$CTEST_BINDIR"; fi
-if [ ! -d $CTEST_RESULTDIR ]; then die "Missing environment variable \$CTEST_RESULTDIR"; fi
+if [ -z $CTEST_RESULTDIR ] ; then die "Missing environment variable \$CTEST_RESULTDIR"; fi
+if [ ! -d $CTEST_RESULTDIR ]; then
+    mkdir "${CTEST_RESULTDIR}"
+fi
 export PATH=$CTEST_BINDIR:$PATH
 TEST_SETUP=1

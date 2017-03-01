@@ -1,8 +1,4 @@
-#include <stdint.h>
-
-volatile int16_t x, x1;
-volatile int32_t y, y2;
-volatile int64_t z, z1;
+volatile int x, x1, y, y2, z, z1;
 
 int main(int argc, char **argv)
 {

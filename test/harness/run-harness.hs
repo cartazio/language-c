@@ -7,7 +7,7 @@ import System.Directory (doesDirectoryExist, doesFileExist, getCurrentDirectory,
 import System.FilePath ((</>))
 import System.Process (readProcessWithExitCode, callProcess)
 import System.IO (hPutStrLn, hPrint, stderr)
-import Control.Monad (filterM, liftM)
+import Control.Monad (filterM, liftM, when)
 
 testDirs :: [String]
 testDirs = ["test/harness","harness","."]
@@ -54,8 +54,12 @@ main = do
       setCurrentDirectory dir
       (exitCode, _outp, _errp) <- readProcessWithExitCode "make" [] ""
       hPutStrLn stderr ("cd " ++ dir ++ " && make: " ++ show exitCode)
---      hPutStrLn stdout _outp
---      hPutStrLn stderr _errp
+      when (exitCode /= ExitSuccess) $ do
+        hPutStrLn stderr "=== Standard Output ==="
+        hPutStrLn stderr _outp
+        hPutStrLn stderr "=== Error Output ==="
+        hPutStrLn stderr _errp
+        hPutStrLn stderr "=== End of Output ==="
       return exitCode
 
 
