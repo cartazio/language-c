@@ -118,7 +118,7 @@ checkRedef subject new_decl redecl_status =
 handleTagDecl :: (MonadCError m, MonadSymtab m) => TagFwdDecl -> m ()
 handleTagDecl decl = do
     redecl <- withDefTable $ declareTag (sueRef decl) decl
-    checkRedef (show $ sueRef decl) decl redecl
+    checkRedef (sueRefToString $ sueRef decl) decl redecl
 
 -- | define the given composite type or enumeration
 -- If there is a declaration visible, overwrite it with the definition.
@@ -127,14 +127,14 @@ handleTagDecl decl = do
 handleTagDef :: (MonadTrav m) => TagDef -> m ()
 handleTagDef def = do
     redecl <- withDefTable $ defineTag (sueRef def) def
-    checkRedef (show $ sueRef def) def redecl
+    checkRedef (sueRefToString $ sueRef def) def redecl
     handleDecl (TagEvent def)
 
 handleEnumeratorDef :: (MonadCError m, MonadSymtab m) => Enumerator ->  m ()
 handleEnumeratorDef enumerator = do
     let ident = declIdent enumerator
     redecl <- withDefTable $ defineScopedIdent ident (EnumeratorDef enumerator)
-    checkRedef (show ident) ident redecl
+    checkRedef (identToString ident) ident redecl
     return ()
 
 handleTypeDef :: (MonadTrav m) => TypeDef -> m ()
@@ -147,7 +147,7 @@ handleTypeDef typeDef@(TypeDef ident t1 _ _) = do
     -- provided that type is not a variably modified type;
     case redecl of
       Redeclared (Left (TypeDef _ t2 _ _)) | sameType t1 t2 -> return ()
-      _ -> checkRedef (show ident) typeDef redecl
+      _ -> checkRedef (identToString ident) typeDef redecl
     handleDecl (TypeDefEvent typeDef)
     return ()
 
@@ -157,7 +157,7 @@ handleAsmBlock asm = handleDecl (AsmEvent asm)
 redefErr :: (MonadCError m, CNode old, CNode new) =>
             Ident -> ErrorLevel -> new -> old -> RedefKind -> m ()
 redefErr name lvl new old kind =
-  throwTravError $ redefinition lvl (show name) kind (nodeInfo new) (nodeInfo old)
+  throwTravError $ redefinition lvl (identToString name) kind (nodeInfo new) (nodeInfo old)
 
 -- TODO: unused
 _checkIdentTyRedef :: (MonadCError m) => IdentEntry -> (DeclarationStatus IdentEntry) -> m ()

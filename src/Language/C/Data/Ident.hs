@@ -17,7 +17,8 @@
 module Language.C.Data.Ident (
     Ident(..),
     SUERef(..), isAnonymousRef,
-    mkIdent, builtinIdent, internalIdent, internalIdentAt, isInternalIdent, identToString, dumpIdent)
+    mkIdent, builtinIdent, internalIdent, internalIdentAt, isInternalIdent,
+    identToString, sueRefToString, dumpIdent)
 where
 
 -- TODO (comment from manuel):
@@ -122,6 +123,11 @@ isInternalIdent (Ident _ _ nodeinfo) = isInternalPos (posOfNode nodeinfo)
 -- | string of an identifier
 identToString               :: Ident -> String
 identToString (Ident s _ _)  = s
+
+-- | string of a SUE ref (empty if anonymous)
+sueRefToString                 :: SUERef -> String
+sueRefToString (AnonymousRef _) = ""
+sueRefToString (NamedRef ident) = identToString ident
 
 -- | dump the identifier string and its positions for debugging purposes
 dumpIdent     :: Ident -> String

@@ -60,8 +60,6 @@ sizeofType md n (ArrayType bt (ArraySize _ sz) _ _) =
             -}
 sizeofType md n (TypeDefType (TypeDefRef _ t _) _ _) = sizeofType md n t
 sizeofType md _ (FunctionType _ _) = return $ ptrSize md
-sizeofType _ n t = astError (nodeInfo n) $
-                 "can't find size of type: " ++ (render . pretty) t
 
 alignofType :: (MonadTrav m, CNode n) => MachineDesc -> n -> Type -> m Integer
 alignofType md _ (DirectType TyVoid _ _) = return $ voidAlign md

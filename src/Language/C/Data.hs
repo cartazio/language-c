@@ -14,7 +14,7 @@ module Language.C.Data (
      -- * Input stream
      module Language.C.Data.InputStream,
      -- * Identifiers
-     SUERef(..), isAnonymousRef,
+     SUERef(..), isAnonymousRef, sueRefToString,
      Ident,mkIdent, identToString, internalIdent, isInternalIdent, builtinIdent,
      -- * Unqiue names
      Name(..),newNameSupply,
