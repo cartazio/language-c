@@ -136,10 +136,14 @@ tokens :-
 --
 $white+         ;
 
--- #line directive (K&R A12.6)
+-- #line directive (C11 6.10.4, GCC Line Control)
 --
--- * allows further ints after the file name a la GCC; as the GCC CPP docu
---   doesn't say how many ints there can be, we allow an unbound number
+-- * standard form: int => change line number
+-- * standard form: int string => change source file and line number
+-- * preprocessor (gcc/clang): int string int => change source file and line number,
+--       push or pop item from stack
+--
+-- * see https://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html
 --
 \#$space*@int$space*(\"($infname|@charesc)*\"$space*)?(@int$space*)*\r?$eol
   { \pos len str -> setPos (adjustLineDirective len (takeChars len str) pos) >> lexToken' False }
@@ -404,19 +408,38 @@ tok len tc pos = return (tc (pos,len))
 
 adjustLineDirective :: Int -> String -> Position -> Position
 adjustLineDirective pragmaLen str pos =
-    offs' `seq` fname' `seq` row' `seq` (position offs' fname' row' 1)
+    offs' `seq` fname' `seq` row' `seq` parent' `seq` (position offs' fname' row' 1 parent')
     where
+    -- offset changes by length of #line pragma
     offs'           = (posOffset pos) + pragmaLen
     str'            = dropWhite . drop 1 $ str
     (rowStr, str'') = span isDigit str'
+    -- row changes to the first number in the line pragma
     row'      = read rowStr
     str'''      = dropWhite str''
-    fnameStr      = takeWhile (/= '"') . drop 1 $ str'''
+    (fnameStr,str'''') = span (/= '"') . drop 1 $ str'''
     fname = posFile pos
-    fname'      | null str''' || head str''' /= '"' = fname
-     -- try and get more sharing of file name strings
-     | fnameStr == fname     = fname
-     | otherwise             = fnameStr
+    no_fn = null str''' || (head str''' /= '"') || (head str'''' /= '"')
+    -- filename changes to new filename, if specified
+    fname' | no_fn = fname
+           -- try and get more sharing of file name strings
+           | fnameStr == fname     = fname
+           | otherwise             = fnameStr
+    -- analye flags
+    min_flag = find_min_flag (5 :: Int) (drop 1 str'''')
+    find_min_flag cur_min = select_min . span isDigit . dropWhile (not . isDigit)
+      where
+        select_min (numStr, fstr') | null numStr = cur_min
+                                   | otherwise = find_min_flag (read numStr `min` cur_min) fstr'
+    parent = posParent pos
+    parent' = case min_flag of
+                1 -> Just pos -- push
+                2 -> case parent >>= posParent of
+                         Nothing -> Nothing          -- pop/underflow
+                         Just gp -> gp `seq` Just gp -- pop
+                3 -> parent   -- unchanged stack, system header info
+                4 -> parent   -- unchanged stack, extern C info
+                _ -> Nothing
     --
     dropWhite = dropWhile (\c -> c == ' ' || c == '\t')
 
