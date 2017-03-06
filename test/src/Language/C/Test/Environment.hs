@@ -11,19 +11,21 @@
 -- them in form of a TestConfig datum.
 --
 -- `envHelpDoc' says:
--- 
+--
 -- Influental environment variables:
 --     CTEST_TMPDIR                  the temporary directory to write test reports to
 --     CTEST_LOGFILE                 the log file [default = <stderr>]
 --     CTEST_REPORT_FILE             file to write test reports to [default = CTEST_TMPDIR/report.dat]
 --     CTEST_DEBUG                   whether to print debug messages [default = False]
 --     CTEST_KEEP_INTERMEDIATE       whether to keep intermediate files [default = False]
+--     CTEST_EXIT_FAILURE            whether to exit with failure if one test fails
 -----------------------------------------------------------------------------
 module Language.C.Test.Environment (
 -- * Test Configurations
 TestConfig(..),
 envHelpDoc,
-getEnvFlag,getEnvConfig,
+getEnvFlag,exitFailureEnvVar,
+getEnvConfig,
 -- * Process cpp arguments
 isPreprocessedFile,MungeResult(..),mungeCcArgs,
 )
@@ -55,11 +57,12 @@ envHelp = [ vi tmpdirEnvVar "the temporary directory to write test reports to" N
             vi logfileEnvVar "the log file" (Just "<stderr>"),
             vi reportFileEnvVar "file to write test reports to" (Just (tmpdirEnvVar++"/report.dat")),
             vi debugEnvVar "whether to print debug messages" (Just ("False")),
-            vi keepImEnvVar "whether to keep intermediate files" (Just ("False"))
+            vi keepImEnvVar "whether to keep intermediate files" (Just ("False")),
+            vi exitFailureEnvVar "whether to exit with failure if one test fails" (Just ("False"))
           ]
   where vi envVar varDescr varDef = (envVar, (varDescr, varDef))
 
-data TestConfig = TestConfig 
+data TestConfig = TestConfig
   {
     debug :: String -> IO (),
     logger :: String -> IO (),
@@ -77,6 +80,8 @@ debugEnvVar :: String
 debugEnvVar = "CTEST_DEBUG"
 keepImEnvVar :: String
 keepImEnvVar = "CTEST_KEEP_INTERMEDIATE"
+exitFailureEnvVar :: String
+exitFailureEnvVar = "CTEST_EXIT_FAILURE"
 defaultReportFile :: String
 defaultReportFile = "report.dat"
 

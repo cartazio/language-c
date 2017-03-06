@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-} 
+{-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS  #-}
 -----------------------------------------------------------------------------
 -- |
@@ -21,11 +21,12 @@ ppTestTemplate, runPrettyPrint,
 equivTestTemplate,runEquivTest,
 compileTestTemplate, runCompileTest,
 ) where
+import Control.Exception
 import Control.Monad.State
 import Data.List
 
 import System.Process
-import System.Directory 
+import System.Directory
 import System.Exit
 import System.FilePath (takeBaseName, takeExtension)
 import System.IO
@@ -48,7 +49,7 @@ lineCount = liftM (length . lines) . readFile
 -- | change filename extension
 withFileExt :: FilePath -> String -> FilePath
 withFileExt filename ext = (stripExt filename) ++ "." ++ ext where
-  stripExt fn = 
+  stripExt fn =
     let basefn = takeBaseName fn in
     case (dropWhile (/= '.') . reverse) basefn of
       ('.' : s : ss) -> reverse (s : ss)
@@ -57,10 +58,10 @@ withFileExt filename ext = (stripExt filename) ++ "." ++ ext where
 -- =======
 -- = CPP =
 -- =======
-  
--- | @(copiedFile,preprocessedFile) = runTestCPP origFile cppArgs@ copies the original 
---   file to @copiedFile@ and then preprocesses this file using @gcc -E -o preprocessedFile cppArgs@. 
-runCPP :: FilePath -> [String] -> TestMonad (FilePath,FilePath)      
+
+-- | @(copiedFile,preprocessedFile) = runTestCPP origFile cppArgs@ copies the original
+--   file to @copiedFile@ and then preprocesses this file using @gcc -E -o preprocessedFile cppArgs@.
+runCPP :: FilePath -> [String] -> TestMonad (FilePath,FilePath)
 runCPP origFile cppArgs = do
   -- copy original file (for reporting)
   cFile <- withTempFile_ (takeExtension origFile) $ \_ -> return ()
@@ -68,25 +69,25 @@ runCPP origFile cppArgs = do
   case copySuccess of
     Left err -> errorOnInit cppArgs $ "Copy failed: " ++ show err
     Right () -> dbgMsg      $ "Copy: " ++ origFile ++ " ==> " ++ cFile ++ "\n"
-  
+
   -- preprocess C file, if it isn't preprocessed already
   preFile <- case isPreprocessedFile cFile of
     False -> do
       dbgMsg $ "Preprocessing " ++ origFile ++ "\n"
       preFile     <- withTempFile_ ".i" $ \_hnd -> return ()
       (preErrReport, gccExitcode) <- withTempFile ".cpp_report" $ \errReportHnd -> do
-         liftIO $ runProcess "gcc"  (["-E", "-o", preFile] ++ cppArgs ++ [origFile]) 
-                  Nothing Nothing 
+         liftIO $ runProcess "gcc"  (["-E", "-o", preFile] ++ cppArgs ++ [origFile])
+                  Nothing Nothing
                   Nothing Nothing (Just errReportHnd)
                   >>= waitForProcess
-      case gccExitcode of 
+      case gccExitcode of
         ExitSuccess       ->  do
           modify $ addTmpFile preFile
           return preFile
         ExitFailure fCode -> do
           modify $ addTmpFile preErrReport
           errReport <- liftIO $ readFile preErrReport
-          errorOnInit cppArgs $ "C preprocessor failed: " ++ "`gcc -E -o " ++ preFile ++ " " ++ (unwords cppArgs) ++ " " ++ origFile ++ 
+          errorOnInit cppArgs $ "C preprocessor failed: " ++ "`gcc -E -o " ++ preFile ++ " " ++ (unwords cppArgs) ++ " " ++ origFile ++
                                 "' returned exit code `" ++ show fCode ++ "'\n" ++
                                 "Output from stderr: " ++ errReport
     True -> return cFile
@@ -122,7 +123,7 @@ runParseTest preFile initialPos = do
     Left err@(ParseError (errMsgs, pos)) -> do
       report <- reportParseError err (inputStreamToString input)
       return $ Left $ (unlines (("Parse error in " ++ show pos) : errMsgs), report)
-    Right header -> 
+    Right header ->
       return $ Right $ (header,PerfMeasure (fromIntegral $ countLines input,elapsed))
 
 reportParseError :: ParseError -> String -> TestMonad FilePath
@@ -154,13 +155,13 @@ runPrettyPrint ast = do
     dbgMsg "Pretty Print ..."
     (fullExport,t) <-
       time $
-        withTempFile_ "pp.c" $ \hnd -> 
+        withTempFile_ "pp.c" $ \hnd ->
           liftIO $ hPutStrLn hnd $ show (pretty ast)
     modify $ addTmpFile fullExport
     locs <- liftIO $ lineCount fullExport
 
     dbgMsg $ " to " ++ fullExport ++ " (" ++ show locs ++ " lines)"++ "\n"
-    
+
     -- export the parsed file, with headers via include
     dbgMsg $ "Pretty Print [report] ... "
     smallExport <- withTempFile_ "ppr.c" $ \hnd ->
@@ -185,15 +186,15 @@ equivTestTemplate = Test
 runEquivTest :: CTranslUnit -> CTranslUnit -> TestMonad (Either (String, Maybe FilePath) PerfMeasure)
 runEquivTest (CTranslUnit decls1 _) (CTranslUnit decls2 _) = do
   dbgMsg $ "Check AST equivalence\n"
-  
+
   -- get generic asts
   (result,t) <- time $ do
     let ast1 = map (toGenericAST . normalizeAST) decls1
     let ast2 = map (toGenericAST . normalizeAST) decls2
     if (length ast1 /= length ast2)
-      then 
+      then
         return $ Left ("Length mismatch: " ++ show (length ast1) ++ " vs. " ++ show (length ast2), Nothing)
-      else 
+      else
         case find (\(_, (d1,d2)) -> d1 /= d2) (zip [0..] (zip ast1 ast2)) of
           Just (ix, (decl1,decl2)) -> do
             declf1 <- withTempFile_ ".1.ast"    $ \hnd -> liftIO $ hPutStrLn hnd (show $ pretty decl1)
@@ -205,7 +206,8 @@ runEquivTest (CTranslUnit decls1 _) (CTranslUnit decls2 _) = do
             liftIO $ do
               appendFile diff ("Original declaration: \n" ++ decl1Src ++ "\n")
               appendFile diff ("Pretty printed declaration: \n" ++ decl2Src ++ "\n")
-              system $ "diff -u '" ++ declf1 ++ "' '" ++ declf2 ++ "' >> '" ++ diff ++ "'" -- TODO: escape ' in filenames
+              _ <- system $ "diff -u '" ++ declf1 ++ "' '" ++ declf2 ++ "' >> '" ++ diff ++ "'" -- TODO: escape ' in filenames
+              return ()
             return $ Left ("Declarations do not match: ", Just diff)
           Nothing -> return $ Right (length ast1)
   return $ either Left (\decls -> Right $ PerfMeasure (fromIntegral decls, t)) result
@@ -244,8 +246,8 @@ runCompileTest args file = do
     dbgMsg "Compile ..."
     outFile   <- withTempFile_ ".o" $ \_hnd -> return ()
     (gccErrReport,(exitCode,t)) <- withTempFile ".cc_report" $ \errReportHnd -> do
-        time $ liftIO $ runProcess "gcc"  (["-o", outFile,"-std=gnu99"] ++ args ++ [file]) 
-                                Nothing Nothing 
+        time $ liftIO $ runProcess "gcc"  (["-o", outFile,"-std=gnu99"] ++ args ++ [file])
+                                Nothing Nothing
                                 Nothing Nothing (Just errReportHnd)
                          >>= waitForProcess
     case exitCode of
@@ -256,7 +258,7 @@ runCompileTest args file = do
         ExitFailure fCode -> do
             return . Left $ ("gcc "++concat (intersperse " " args)++" "++file++ " failed with exit code "++show fCode,
                              gccErrReport)
-              
+
 -- ===========
 -- = Helpers =
 -- ===========
@@ -264,8 +266,8 @@ runCompileTest args file = do
 --  make sure parse is evaluated
 -- Rational: If we no wheter the parse result is an error or ok, we already have performed the parse
 parseEval :: InputStream -> Position -> TestMonad (Either ParseError CTranslUnit)
-parseEval input initialPos = 
-  case parseC input initialPos of 
+parseEval input initialPos =
+  case parseC input initialPos of
     Left  err -> return $ Left err
     Right ok ->  return $ Right ok
 
@@ -274,13 +276,15 @@ eitherStatus = either (const "ERROR") (const "ok")
 
 getContextInfo :: Position -> IO String
 getContextInfo pos = do
-  cnt <- readFile (posFile pos)
-  return $ 
-    case splitAt (posRow pos - 1) (lines cnt) of
+  content <- readFile (posFile pos) `catch` handleIOError
+  return $
+    case splitAt (posRow pos - 1) (lines content) of
       ([],[]) -> "/* No Input */"
       ([],ctxLine : post) -> showContext [] ctxLine (take 1 post)
       (pre,[]) -> showContext [last pre] "/* End Of File */" []
       (pre,ctxLine : post) -> showContext [last pre] ctxLine (take 1 post)
   where
+    handleIOError :: IOException -> IO String
+    handleIOError _ = return ""
     showContext preCtx ctx postCtx = unlines $ preCtx ++ [ctx, replicate (posColumn pos - 1) ' ' ++ "^^^"] ++ postCtx
 

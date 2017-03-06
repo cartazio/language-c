@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, TypeSynonymInstances, FlexibleContexts #-} 
+{-# LANGUAGE MultiParamTypeClasses, TypeSynonymInstances, FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
 {-# OPTIONS  #-}
 -----------------------------------------------------------------------------
@@ -27,7 +27,8 @@ import Control.Exception (catch)
 import Control.Monad.Cont
 import Control.Monad.Reader
 import Control.Monad.State
-import System.CPUTime 
+import Data.Map (elems)
+import System.CPUTime
 import System.Directory
 import System.Environment (getArgs)
 import System.Exit
@@ -60,9 +61,9 @@ setTestRunResults tr testData = testData { runResults = tr }
 addTest :: TestResult -> (TestData -> TestData)
 addTest result testData = testData { runResults = insertTest result (runResults testData) }
 addTmpFile :: FilePath -> (TestData -> TestData)
-addTmpFile tmpFile testData = testData { tempFiles = (tmpFile : tempFiles testData) } 
+addTmpFile tmpFile testData = testData { tempFiles = (tmpFile : tempFiles testData) }
 setTmpTemplate :: String -> (TestData -> TestData)
-setTmpTemplate tmpl testData = testData { tmpTemplate = tmpl } 
+setTmpTemplate tmpl testData = testData { tmpTemplate = tmpl }
 setTestExit :: TestMonad () -> (TestData -> TestData)
 setTestExit exit testData = testData { testExit = exit }
 -- ==============
@@ -77,7 +78,7 @@ instance MonadState TestData TestMonad where
   put = TM . put
 -- wrap-unwrap-wrap, but no guacamole
 instance MonadCont TestMonad where
-  callCC cc = TM $ callCC (\cont -> unTM (cc (TM . cont)))
+  callCC cc = TM $ callCC (\continuation -> unTM (cc (TM . continuation)))
 instance MonadIO TestMonad where
   liftIO = TM . liftIO
 
@@ -93,7 +94,7 @@ dbgMsg msg = liftM debug ask >>= \dbg -> liftIO (dbg msg)
 addTestM :: TestResult -> TestMonad ()
 addTestM result = do
   config <- ask
-  modify $ addTest result  
+  modify $ addTest result
   liftIO $ logger config $ show (pretty result) ++ "\n"
 
 time :: TestMonad a -> TestMonad (a, Time)
@@ -125,13 +126,13 @@ withTempFile :: String -> (Handle -> TestMonad a) -> TestMonad (FilePath, a)
 withTempFile ext a = do
   tmpdir <- liftM tmpDir ask
   tmpl   <- gets tmpTemplate
-  (tmpFile, tmpHnd) <- liftIO $ openTempFile tmpdir (tmpl ++ ext) 
+  (tmpFile, tmpHnd) <- liftIO $ openTempFile tmpdir (tmpl ++ ext)
   r <- a tmpHnd
   liftIO$ hClose tmpHnd
   return (tmpFile, r)
 
 
--- | @defaultMain testRunner executes the test set @tests = testRunner cmdLineArgs@ 
+-- | @defaultMain testRunner executes the test set @tests = testRunner cmdLineArgs@
 --   and records the results, using the provided environment variables (see 'TestEnvironment').
 defaultMain :: Doc -> ([String] -> TestMonad ()) -> IO ()
 defaultMain usage testRunner = do
@@ -158,3 +159,13 @@ defaultMain usage testRunner = do
   debug config $ "Wrote test results. Cleaning up.\n"
 
   when (not $ keepIntermediate config) $ cleanTmpFiles testDat
+
+  -- for regression testing
+  exit_failure <- getEnvFlag exitFailureEnvVar
+  when exit_failure $ do
+    case runResults testDat of
+      TestResults _ _ results -> do
+        when (any (not . isTestOk . testStatus) (Data.Map.elems results)) $
+          exitWith (ExitFailure 1)
+      _ -> exitWith (ExitFailure 2)
+
