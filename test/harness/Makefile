@@ -7,7 +7,8 @@ TESTS=analysis_enum \
       bug20130805_nopos \
       bug20160302_int128 \
       bug20160314_noreturn \
-      bug20160911_builtin_bswap
+      bug20160911_builtin_bswap \
+      parse_dg
 
 #bug20140111_utf8
 all: tests
