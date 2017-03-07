@@ -1,7 +1,7 @@
 module Main where
 
 import Data.List (intercalate)
-import System.Exit (ExitCode(..), exitFailure, exitSuccess)
+import System.Exit (ExitCode(..), exitFailure, exitSuccess, exitWith)
 import System.Directory (doesDirectoryExist, doesFileExist, getCurrentDirectory, setCurrentDirectory,
                          getDirectoryContents)
 import System.FilePath ((</>))
@@ -36,6 +36,11 @@ findM p (x:xs) = do guard <- p x ; if guard then (return $ Just x) else (findM p
 main :: IO ExitCode
 main = do
   actual_test_dir <- getActualTestDirectory testDirs
+  has_makefile <- doesFileExist (actual_test_dir </> "Makefile")
+  when (not has_makefile) $ do
+    hPutStrLn stderr "No Makefile found (out of source tree)"
+    hPutStrLn stderr "Skipping harness test"
+    exitWith ExitSuccess
   tests <- subdirectoriesOf actual_test_dir
   cdir <- getCurrentDirectory
   hPutStrLn stderr ("Changing to test directory " ++ actual_test_dir ++ " and compiling")

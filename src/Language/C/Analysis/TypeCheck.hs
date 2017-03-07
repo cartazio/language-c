@@ -163,7 +163,7 @@ compositeType t1 t2 | isPointerType t1 && isPointerType t2 =
      let quals = mergeTypeQuals (typeQuals t1) (typeQuals t2)
          attrs = mergeAttrs (typeAttrs t1) (typeAttrs t2)
      return (PtrType t quals attrs)
-compositeType (TypeDefType tdr1 q1 a1) (TypeDefType tdr2 q2 a2) =
+compositeType (TypeDefType tdr1 _q1 _a1) (TypeDefType tdr2 _q2 _a2) =
   case (tdr1, tdr2) of
     (TypeDefRef _ t1 _, TypeDefRef _ t2 _) ->
       compositeType t1 t2
