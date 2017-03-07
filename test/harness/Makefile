@@ -8,17 +8,21 @@ TESTS=analysis_enum \
       bug20160302_int128 \
       bug20160314_noreturn \
       bug20160729_C_include_stack \
-      bug20160911_builtin_bswap
+      bug20160911_builtin_bswap \
+      parse_dg
 
 #bug20140111_utf8
 all: tests
 tests:  $(TESTS:=.runtest)
-prepare: compile_examples compile_test
-compile_examples:
+prepare: make_examples make_test
+make_examples: build_lib
 	make -C ../../examples
-compile_test:
+build_lib:
+	cd ../.. && cabal build
+make_test: build_lib
 	make -C ../
 clean: $(TESTS:=.runclean)
+	make -C ../../examples clean
 %.runtest: | prepare
 	make -C $* clean all
 %.runclean:

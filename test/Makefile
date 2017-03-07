@@ -13,6 +13,7 @@ all: $(INPLACE_PACKAGE_CONF)
 clean:
 	rm -f $(addprefix $(BIN_DIR)/, $(BINARIES))
 	cabal clean
+	make -C harness clean
 
 ../dist/package.conf.inplace:
 	echo "Please run cd .. && cabal build first"

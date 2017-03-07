@@ -23,7 +23,7 @@ TestRun(..),hasTestResults,initFailure,emptyTestResults,insertTest,
 Pretty(..),
 -- ReExport the formatting stuff
 module Language.C.Test.Measures,
-) 
+)
 where
 
 import Control.Monad.Except
@@ -46,17 +46,17 @@ data Test = Test
     inputUnit :: UnitDescr
   }
   deriving (Show,Read)
-  
+
 testTemplate :: String -> String -> MetricScale -> UnitDescr -> Test
 testTemplate testname testdescr preferredscale inputdim =
-  Test testname testdescr preferredscale inputdim 
+  Test testname testdescr preferredscale inputdim
 
 -- ================
 -- = Test results =
 -- ================
-  
+
 -- | Result of a test
-data TestResult = 
+data TestResult =
   TestResult {
     testInfo :: Test,
     testArgs :: [String],
@@ -76,7 +76,7 @@ data TestStatus =
   | TestFailure String (Maybe FilePath)
   | TestOk (Maybe PerfMeasure) (Maybe FilePath)
   deriving (Show,Read)
-  
+
 testError :: String -> TestStatus
 testError = TestError
 isTestError :: TestStatus -> Bool
@@ -116,7 +116,7 @@ instance Pretty TestResult where
       ctx <+> text ("FAILED: ")
       $+$ (nest 4 . vcat . catMaybes)
           [ Just (ppErrorMessage errMsg),
-            fmap (ppFileRef "report") report ]            
+            fmap (ppFileRef "report") report ]
     pretty' ctx (TestOk measure report) =
       ctx <+> text "succeeded" <+> stats
       $+$ (nest 4 . vcat . catMaybes)
@@ -126,11 +126,11 @@ instance Pretty TestResult where
           case measure of
             Nothing    -> empty
             Just (PerfMeasure (inpsize,ttime)) | ttime == 0 -> empty
-                                               | otherwise  -> 
+                                               | otherwise  ->
               parens$
                     text (formatInputSize testinfo inpsize ++ " in " ++ formatSeconds ttime ++ ", ")
                 <+> text (formatUnitsPerTime (inpsize `per` ttime) (preferredScale testinfo) (inputUnit testinfo) (scaleSecs Unit))
-          
+
 
 ppErrorMessage :: String -> Doc
 ppErrorMessage =  vcat . map text . filter (not . null) . lines
@@ -143,7 +143,7 @@ ppFileRef info file = text $ "See "++info++" file: `"++file++"'"
 -- =============
 
 -- | Result of a parser test run
-data TestRun = 
+data TestRun =
     FatalError {
       fatalErrMsg :: String,
       runArgs    :: [String]
@@ -165,10 +165,10 @@ hasTestResults _ = False
 
 instance Pretty TestRun where
   pretty (FatalError { fatalErrMsg = msg, runArgs = args}) =
-    text ("Test aborted with fatal error: "++msg) <+> brackets (text "$CC"<+>hsep (map text args))    
+    text ("Test aborted with fatal error: "++msg) <+> brackets (text "$CC"<+>hsep (map text args))
   pretty (InitFailure { initFailMsg = msg, runArgs = args }) =
     text ("Test initialization failed: "++msg) <+> brackets (text "$CC"<+>hsep (map text args))
-  pretty tr = vcat $ map pretty (Map.elems $ testResults tr) 
+  pretty tr = vcat $ map pretty (Map.elems $ testResults tr)
 
 initFailure :: String -> [String] -> TestRun
 initFailure msg args =
