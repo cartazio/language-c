@@ -7,6 +7,7 @@ TESTS=analysis_enum \
       bug20130805_nopos \
       bug20160302_int128 \
       bug20160314_noreturn \
+      bug20160729_C_include_stack \
       bug20160911_builtin_bswap \
       parse_dg
 
