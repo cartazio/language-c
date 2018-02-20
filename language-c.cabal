@@ -1,5 +1,5 @@
 Name:           language-c
-Version:        0.7.1
+Version:        0.7.2
 Cabal-Version:  >= 1.8
 Build-Type:     Simple
 License:        BSD3
@@ -45,7 +45,7 @@ Library
         else
           ghc-options:     -Wall
     if flag(splitBase)
-        Build-Depends: base >= 3 && < 5, process, directory, array, containers, pretty
+        Build-Depends: base >= 3 && < 5, process, directory, array, containers, pretty < 1.2.0
 
         If flag(separateSYB)
           Build-Depends:
