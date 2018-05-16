@@ -345,7 +345,9 @@ idkwtok ('_' : '_' : 'e' : 'x' : 't' : 'e' : 'n' : 's' : 'i' : 'o' : 'n' : '_' :
 idkwtok ('e' : 'x' : 't' : 'e' : 'r' : 'n' : []) = tok 6 CTokExtern
 idkwtok ('f' : 'l' : 'o' : 'a' : 't' : []) = tok 5 CTokFloat
 idkwtok ('_' : '_' : 'f' : 'l' : 'o' : 'a' : 't' : '1' : '2' : '8' : []) = tok 10 CTokFloat128
+#ifdef IEC_60559_TYPES_EXT
 idkwtok ('_' : 'F' : 'l' : 'o' : 'a' : 't' : '1' : '2' : '8' : []) = tok 9 CTokFloat128
+#endif
 idkwtok ('f' : 'o' : 'r' : []) = tok 3 CTokFor
 idkwtok ('g' : 'o' : 't' : 'o' : []) = tok 4 CTokGoto
 idkwtok ('i' : 'f' : []) = tok 2 CTokIf

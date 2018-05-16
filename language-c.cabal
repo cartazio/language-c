@@ -34,6 +34,9 @@ Flag separateSYB
 Flag allWarnings
     Description: Turn on all warnings for building (development)
     Default: False
+Flag iecFpExtension
+    Description: Support IEC 60559 floating point extension (defines _Float128)
+    Default: True
 Library
     Extensions: CPP, DeriveDataTypeable, DeriveGeneric, PatternGuards, BangPatterns, ExistentialQuantification, GeneralizedNewtypeDeriving, ScopedTypeVariables
     Build-Depends: base >= 3 && < 5,
@@ -62,6 +65,9 @@ Library
         Build-Depends: bytestring >= 0.9.0
     else
         cpp-options: -DNO_BYTESTRING
+
+    if flag(iecFpExtension)
+        cpp-options: -DIEC_60559_TYPES_EXT
 
      -- GHC.Generics lived in `ghc-prim` for GHC 7.2 & GHC 7.4
     if impl(ghc == 7.4.*)
