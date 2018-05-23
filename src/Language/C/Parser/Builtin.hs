@@ -18,4 +18,6 @@ import Language.C.Data.Ident (Ident, builtinIdent)
 -- predefined type names
 --
 builtinTypeNames :: [Ident]
-builtinTypeNames  = [builtinIdent "__builtin_va_list"]
+builtinTypeNames  = [
+     builtinIdent "__builtin_va_list"
+  ]

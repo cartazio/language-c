@@ -5,8 +5,11 @@ PROJECT_DIR=..
 BIN_DIR=bin
 INPLACE_PACKAGE_CONF=$(PROJECT_DIR)/dist/package.conf.inplace
 
-all: $(INPLACE_PACKAGE_CONF)
-	cabal configure --package-db $(INPLACE_PACKAGE_CONF)
+# recommended to use cabal sandbox with local source ../
+all:
+	if [ ! -e .cabal-sandbox ] ; then \
+	  cabal configure --package-db $(INPLACE_PACKAGE_CONF) ; \
+	fi
 	cabal build
 	for b in $(BINARIES) ; do cp dist/build/$$b/$$b $(BIN_DIR) ; done
 

@@ -120,7 +120,8 @@ $infname  = . # [ \\ \" ]             -- valid character in a filename
 @binexp    = [pP][\+\-]?@digits
 
 -- Suffixes `qQwW` are GNU floating type extensions: <https://gcc.gnu.org/onlinedocs/gcc/Floating-Types.html>
-@floatsuffix    = [fFlLqQwW]
+@iec60559suffix = (32|64|128)[x]?
+@floatsuffix    = [fFlLqQwW]@iec60559suffix?
 @floatgnusuffix = @floatsuffix@gnusuffix?|@gnusuffix@floatsuffix?
 
 -- clang version literals with a major.minor.rev
@@ -268,6 +269,7 @@ readCOctal s@('0':r) =
         _                 -> readCInteger DecRepr s
 readCOctal _ = error "ReadOctal: string does not start with `0'"
 
+
 -- We use the odd looking list of string patterns here rather than normal
 -- string literals since GHC converts the latter into a sequence of string
 -- comparisons (ie a linear search) but it translates the former using its
@@ -282,18 +284,22 @@ break, bool _Bool,
 case, char, const @__, continue, complex _Complex __complex__
 default, do, double,
 else, enum, extern,
-float, for, goto,
-if, inline @__, int, __int128, long, noreturn _Noreturn,
 float, for,
 generic _Generic, goto,
 if, inline @__, int, int128 __int128, long,
-noreturn _Noreturn,  _Nullable __nullable, _Nonnull __nonnull,
+noreturn _Noreturn, _Nonnull __nonnull, _Nullable __nullable,
 register, restrict @__, return
 short, signed @__, sizeof, static, staticAssert _Static_assert, struct, switch,
 typedef, typeof @__, thread __thread _Thread_local
 union, unsigned, void, volatile @__,
 while,
 label __label__
+(CTokFloatN 32 False) _Float32
+(CTokFloatN 32 True) _Float32x
+(CTokFloatN 64 False) _Float64
+(CTokFloatN 64 True) _Float64x
+(CTokFloatN 128 False) _Float128 __float128
+(CTokFloatN 128 True) _Float128x
 (CTokGnuC GnuCAttrTok) __attribute __attribute__
 (CTokGnuC GnuCExtTok) __extension__
 (CTokGnuC GnuCComplexReal) __real __real__
@@ -303,16 +309,14 @@ label __label__
 (CTokGnuC GnuCTyCompat) __builtin_types_compatible_p
 (CTokClangC ClangBuiltinConvertVector) __builtin_convertvector
 -}
--- Tokens: _Alignas _Alignof __alignof alignof __alignof__ __asm asm __asm__ _Atomic auto break _Bool case char __const const __const__ continue _Complex __complex__ default do double else enum extern float __float128 _Float128 for _Generic goto if __inline inline __inline__ int __int128 long _Noreturn  _Nullable __nullable _Nonnull __nonnull register __restrict restrict __restrict__ return short __signed signed __signed__ sizeof static _Static_assert struct switch typedef __typeof typeof __typeof__ __thread _Thread_local union unsigned void __volatile volatile __volatile__ while __label__ __attribute __attribute__ __extension__ __real __real__ __imag __imag__ __builtin_va_arg __builtin_offsetof __builtin_types_compatible_p  __builtin_convertvector
+-- Tokens: _Alignas _Alignof __alignof alignof __alignof__ __asm asm __asm__ _Atomic auto break _Bool case char __const const __const__ continue _Complex __complex__ default do double else enum extern float for _Generic goto if __inline inline __inline__ int __int128 long _Noreturn __nullable __nonnull register __restrict restrict __restrict__ return short __signed signed __signed__ sizeof static _Static_assert struct switch typedef __typeof typeof __typeof__ __thread _Thread_local union unsigned void __volatile volatile __volatile__ while __label__ _Float32 _Float32x _Float64 _Float64x _Float128 __float128 _Float128x __attribute __attribute__ __extension__ __real __real__ __imag __imag__ __builtin_va_arg __builtin_offsetof __builtin_types_compatible_p __builtin_convertvector
 idkwtok ('_' : 'A' : 'l' : 'i' : 'g' : 'n' : 'a' : 's' : []) = tok 8 CTokAlignas
 idkwtok ('_' : 'A' : 'l' : 'i' : 'g' : 'n' : 'o' : 'f' : []) = tok 8 CTokAlignof
 idkwtok ('_' : 'A' : 't' : 'o' : 'm' : 'i' : 'c' : []) = tok 7 CTokAtomic
 idkwtok ('_' : 'B' : 'o' : 'o' : 'l' : []) = tok 5 CTokBool
 idkwtok ('_' : 'C' : 'o' : 'm' : 'p' : 'l' : 'e' : 'x' : []) = tok 8 CTokComplex
-idkwtok ('_' : 'N' : 'o' : 'n' : 'n' : 'u' : 'l' : 'l' : []) = tok 8 CTokNonnull
 idkwtok ('_' : 'G' : 'e' : 'n' : 'e' : 'r' : 'i' : 'c' : []) = tok 8 CTokGeneric
 idkwtok ('_' : 'N' : 'o' : 'r' : 'e' : 't' : 'u' : 'r' : 'n' : []) = tok 9 CTokNoreturn
-idkwtok ('_' : 'N' : 'u' : 'l' : 'l' : 'a' : 'b' : 'l' : 'e' : []) = tok 9 CTokNullable
 idkwtok ('_' : 'S' : 't' : 'a' : 't' : 'i' : 'c' : '_' : 'a' : 's' : 's' : 'e' : 'r' : 't' : []) = tok 14 CTokStaticAssert
 idkwtok ('_' : 'T' : 'h' : 'r' : 'e' : 'a' : 'd' : '_' : 'l' : 'o' : 'c' : 'a' : 'l' : []) = tok 13 CTokThread
 idkwtok ('_' : '_' : 'a' : 'l' : 'i' : 'g' : 'n' : 'o' : 'f' : []) = tok 9 CTokAlignof
@@ -325,10 +329,10 @@ idkwtok ('_' : '_' : 'a' : 't' : 't' : 'r' : 'i' : 'b' : 'u' : 't' : 'e' : []) =
 idkwtok ('_' : '_' : 'a' : 't' : 't' : 'r' : 'i' : 'b' : 'u' : 't' : 'e' : '_' : '_' : []) = tok 13 (CTokGnuC GnuCAttrTok)
 idkwtok ('a' : 'u' : 't' : 'o' : []) = tok 4 CTokAuto
 idkwtok ('b' : 'r' : 'e' : 'a' : 'k' : []) = tok 5 CTokBreak
+idkwtok ('_' : '_' : 'b' : 'u' : 'i' : 'l' : 't' : 'i' : 'n' : '_' : 'c' : 'o' : 'n' : 'v' : 'e' : 'r' : 't' : 'v' : 'e' : 'c' : 't' : 'o' : 'r' : []) = tok 23 (flip CTokClangC ClangBuiltinConvertVector)
 idkwtok ('_' : '_' : 'b' : 'u' : 'i' : 'l' : 't' : 'i' : 'n' : '_' : 'o' : 'f' : 'f' : 's' : 'e' : 't' : 'o' : 'f' : []) = tok 18 (CTokGnuC GnuCOffsetof)
 idkwtok ('_' : '_' : 'b' : 'u' : 'i' : 'l' : 't' : 'i' : 'n' : '_' : 't' : 'y' : 'p' : 'e' : 's' : '_' : 'c' : 'o' : 'm' : 'p' : 'a' : 't' : 'i' : 'b' : 'l' : 'e' : '_' : 'p' : []) = tok 28 (CTokGnuC GnuCTyCompat)
 idkwtok ('_' : '_' : 'b' : 'u' : 'i' : 'l' : 't' : 'i' : 'n' : '_' : 'v' : 'a' : '_' : 'a' : 'r' : 'g' : []) = tok 16 (CTokGnuC GnuCVaArg)
-idkwtok ('_' : '_' : 'b' : 'u' : 'i' : 'l' : 't' : 'i' : 'n' : '_' : 'c' : 'o' : 'n' : 'v' : 'e' : 'r' : 't' : 'v' : 'e' : 'c' : 't' : 'o' : 'r' : []) = tok 23 (flip CTokClangC ClangBuiltinConvertVector)
 idkwtok ('c' : 'a' : 's' : 'e' : []) = tok 4 CTokCase
 idkwtok ('c' : 'h' : 'a' : 'r' : []) = tok 4 CTokChar
 idkwtok ('_' : '_' : 'c' : 'o' : 'm' : 'p' : 'l' : 'e' : 'x' : '_' : '_' : []) = tok 11 CTokComplex
@@ -344,10 +348,7 @@ idkwtok ('e' : 'n' : 'u' : 'm' : []) = tok 4 CTokEnum
 idkwtok ('_' : '_' : 'e' : 'x' : 't' : 'e' : 'n' : 's' : 'i' : 'o' : 'n' : '_' : '_' : []) = tok 13 (CTokGnuC GnuCExtTok)
 idkwtok ('e' : 'x' : 't' : 'e' : 'r' : 'n' : []) = tok 6 CTokExtern
 idkwtok ('f' : 'l' : 'o' : 'a' : 't' : []) = tok 5 CTokFloat
-idkwtok ('_' : '_' : 'f' : 'l' : 'o' : 'a' : 't' : '1' : '2' : '8' : []) = tok 10 CTokFloat128
-#ifdef IEC_60559_TYPES_EXT
-idkwtok ('_' : 'F' : 'l' : 'o' : 'a' : 't' : '1' : '2' : '8' : []) = tok 9 CTokFloat128
-#endif
+idkwtok ('_' : '_' : 'f' : 'l' : 'o' : 'a' : 't' : '1' : '2' : '8' : []) = tok 10 (CTokFloatN 128 False)
 idkwtok ('f' : 'o' : 'r' : []) = tok 3 CTokFor
 idkwtok ('g' : 'o' : 't' : 'o' : []) = tok 4 CTokGoto
 idkwtok ('i' : 'f' : []) = tok 2 CTokIf
@@ -389,6 +390,14 @@ idkwtok ('_' : '_' : 'v' : 'o' : 'l' : 'a' : 't' : 'i' : 'l' : 'e' : []) = tok 1
 idkwtok ('v' : 'o' : 'l' : 'a' : 't' : 'i' : 'l' : 'e' : []) = tok 8 CTokVolatile
 idkwtok ('_' : '_' : 'v' : 'o' : 'l' : 'a' : 't' : 'i' : 'l' : 'e' : '_' : '_' : []) = tok 12 CTokVolatile
 idkwtok ('w' : 'h' : 'i' : 'l' : 'e' : []) = tok 5 CTokWhile
+#ifdef IEC_60559_TYPES_EXT
+idkwtok ('_' : 'F' : 'l' : 'o' : 'a' : 't' : '3' : '2' : []) = tok 8 (CTokFloatN 32 False)
+idkwtok ('_' : 'F' : 'l' : 'o' : 'a' : 't' : '3' : '2' : 'x' : []) = tok 9 (CTokFloatN 32 True)
+idkwtok ('_' : 'F' : 'l' : 'o' : 'a' : 't' : '6' : '4' : []) = tok 8 (CTokFloatN 64 False)
+idkwtok ('_' : 'F' : 'l' : 'o' : 'a' : 't' : '6' : '4' : 'x' : []) = tok 9 (CTokFloatN 64 True)
+idkwtok ('_' : 'F' : 'l' : 'o' : 'a' : 't' : '1' : '2' : '8' : []) = tok 9 (CTokFloatN 128 False)
+idkwtok ('_' : 'F' : 'l' : 'o' : 'a' : 't' : '1' : '2' : '8' : 'x' : []) = tok 10 (CTokFloatN 128 True)
+#endif
 
 idkwtok cs = \pos -> do
   name <- getNewName

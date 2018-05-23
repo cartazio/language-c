@@ -201,8 +201,13 @@ else		{ CTokElse	_ }
 enum		{ CTokEnum	_ }
 extern		{ CTokExtern	_ }
 float		{ CTokFloat	_ }
-"__float128"	{ CTokFloat128	_ }
-"_Float128"	{ CTokFloat128	_ }
+"_Float32"	{ CTokFloatN  32 False _ }
+"_Float32x"	{ CTokFloatN  32 True _ }
+"_Float64"	{ CTokFloatN  64 False _ }
+"_Float64x"	{ CTokFloatN  64 True _ }
+"_Float128"	{ CTokFloatN 128 False _ }
+"_Float128x"	{ CTokFloatN 128 True _ }
+"__float128"	{ CTokFloatN 128 False _ }
 for		{ CTokFor	_ }
 "_Generic"      { CTokGeneric   _ }
 goto		{ CTokGoto	_ }
@@ -874,9 +879,15 @@ basic_type_name
   | unsigned			{% withNodeInfo $1 $ CUnsigType }
   | "_Bool"			{% withNodeInfo $1 $ CBoolType }
   | "_Complex"			{% withNodeInfo $1 $ CComplexType }
-  | "__int128"      {% withNodeInfo $1 $ CInt128Type }
-  | "__float128"      {% withNodeInfo $1 $ CFloat128Type }
-  | "_Float128"      {% withNodeInfo $1 $ CFloat128Type }
+  | "__int128"                  {% withNodeInfo $1 $ CInt128Type }
+  | "_Float32"                  {% withNodeInfo $1 $ (CFloatNType 32 False) }
+  | "_Float32x"                 {% withNodeInfo $1 $ (CFloatNType 32 True) }
+  | "_Float64"                  {% withNodeInfo $1 $ (CFloatNType 64 False) }
+  | "_Float64x"                 {% withNodeInfo $1 $ (CFloatNType 64 True) }
+  | "_Float128"                 {% withNodeInfo $1 $ (CFloatNType 128 False) }
+  | "_Float128x"                {% withNodeInfo $1 $ (CFloatNType 128 True) }
+  | "__float128"                {% withNodeInfo $1 $ (CFloatNType 128 False) }
+
 
 
 -- A mixture of type qualifiers, storage class and basic type names in any
@@ -2067,7 +2078,7 @@ constant :: { CConst }
 constant
   : cint	  {% withNodeInfo $1 $ case $1 of CTokILit _ i -> CIntConst i }
   | cchar	  {% withNodeInfo $1 $ case $1 of CTokCLit _ c -> CCharConst c }
-  | cfloat	{% withNodeInfo $1 $ case $1 of CTokFLit _ f -> CFloatConst f }
+  | cfloat        {% withNodeInfo $1 $ case $1 of CTokFLit _ f -> CFloatConst f }
 
 
 string_literal :: { CStrLit }
