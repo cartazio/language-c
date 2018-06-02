@@ -1,5 +1,30 @@
+Changes since 0.8.0
+==========================================================================
+
 Changes since 0.7.0
 ==========================================================================
+
+Wed May 23 07:08:02 2018 +0200
+    Support IEC 60559 types and literals. Closes #52.
+
+Wed May 16 07:08:15 2018 +0200
+    introduce flag for optional IEC 60559 type support (see #43)
+
+Wed May 16 06:36:04 2018 +0200
+    WIP: towards a complete Export (#51)
+
+Thu Feb 22 13:22:50 2018 -0500
+    [syntax] GHC.Generics.Generic and Control.DeepSeq.NFData instances (#49)
+    (.cabal) drop splitBase flag
+
+Tue Feb 20 08:34:39 2018 +0300
+    Selectively hide Prelude.<>:  GHC 8.4 compat (#45)
+
+Tue Feb 20 00:09:16 2018 -0500
+    (Analysis) Minimal support for __float128 (#47)
+
+Sat Nov 25 08:59:59 2017 +0100
+    Consider builtin_convertvector from #34 for pretty printing
 
 Sat Nov 25 00:46:33 2017 -0600
     add support for _Float128 (#41)
