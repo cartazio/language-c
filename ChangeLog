@@ -6,6 +6,7 @@ Changes since 0.8.0
 	- Add `runTravTWithTravState`
 	- Tests now use Cabal-3
 	- Implement alignment calculation and correct size calculation
+	- Add `Show` instance for `Type`
 
 Changes since 0.7.0
 ==========================================================================
