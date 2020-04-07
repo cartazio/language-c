@@ -115,6 +115,7 @@ Library
                       Language.C.Analysis.TypeConversions
                       Language.C.Analysis.TypeUtils
                       Language.C.Analysis.NameSpaceMap
+                      Language.C.Analysis.MachineDescs
                       -- semrep -> code [alpha]
                       Language.C.Analysis.Export
     Other-Modules:

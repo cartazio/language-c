@@ -7,6 +7,7 @@ Changes since 0.8.0
 	- Tests now use Cabal-3
 	- Implement alignment calculation and correct size calculation
 	- Add `Show` instance for `Type`
+	- Add machine descriptions for x86_64 and armv7l
 
 Changes since 0.7.0
 ==========================================================================
