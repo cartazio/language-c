@@ -147,7 +147,7 @@ $white+         ;
 --
 -- * see https://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html
 --
-\#$space*@int$space*(\"($infname|@charesc)*\"$space*)?(@int$space*)*\r?$eol
+\#$space*@digits$space*(\"($infname|@charesc)*\"$space*)?(@int$space*)*\r?$eol
   { \pos len str -> setPos (adjustLineDirective len (takeChars len str) pos) >> lexToken' False }
 
 -- #pragma directive (K&R A12.8)
