@@ -1,7 +1,7 @@
 # Configuration for test builds
 
 ifndef HC
-	HC=ghc
+	HC=cabal v2-exec ghc --
 endif
 
 ifndef OPT
@@ -20,10 +20,4 @@ ifdef BUILD_DIR
 	HFLAGS+=-hidir $(BUILD_DIR) -odir $(BUILD_DIR)
 endif
 
-INPLACE_PACKAGE_CONF=$(PROJECT_DIR)/dist/package.conf.inplace
-
 VERSION?=$(shell cat $(PROJECT_DIR)/language-c.cabal | grep '^Version:' | sed  -E 's/[ \t]+/ /g' | cut -sd' ' -f2)
-
-HFLAGS += -package-db $(INPLACE_PACKAGE_CONF)  -package language-c-$(VERSION)
-
-
