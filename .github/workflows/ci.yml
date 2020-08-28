@@ -42,6 +42,6 @@ jobs:
     - name: Install dependencies
       run: cabal v2-build $CABAL_ARGS --only-dependencies
     - run: cabal v2-build $CABAL_ARGS all
-    - run: cabal v2-test $CABAL_ARGS all
+    - run: cabal v2-test $CABAL_ARGS
     - run: cabal v2-haddock $CABAL_ARGS all
     - run: cabal v2-sdist $CABAL_ARGS all
