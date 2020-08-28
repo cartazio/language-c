@@ -27,8 +27,8 @@ jobs:
       with:
         ghc-version: ${{ matrix.ghc }}
 
-    - run: cabal update
-    - run: cabal freeze $CABAL_ARGS
+    - run: cabal v2-update
+    - run: cabal v2-freeze $CABAL_ARGS
 
     - uses: actions/cache@v2
       with:
@@ -40,8 +40,8 @@ jobs:
           ${{ runner.os }}-${{ matrix.ghc }}-
 
     - name: Install dependencies
-      run: cabal build $CABAL_ARGS --only-dependencies
-    - run: cabal build $CABAL_ARGS all
-    - run: cabal test $CABAL_ARGS all
-    - run: cabal haddock $CABAL_ARGS all
-    - run: cabal sdist $CABAL_ARGS all
+      run: cabal v2-build $CABAL_ARGS --only-dependencies
+    - run: cabal v2-build $CABAL_ARGS all
+    - run: cabal v2-test $CABAL_ARGS all
+    - run: cabal v2-haddock $CABAL_ARGS all
+    - run: cabal v2-sdist $CABAL_ARGS all
