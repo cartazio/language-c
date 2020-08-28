@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        ghc: ['7.10', '8.0', '8.2', '8.4', '8.6', '8.8', '8.10']
+        ghc: ['8.0', '8.2', '8.4', '8.6', '8.8', '8.10']
       fail-fast: false
     env:
       CABAL_ARGS: "--enable-tests --enable-benchmarks"
