@@ -3,21 +3,12 @@ BINARIES=CTest CParse CRoundTrip CEquiv RenderTests ReportFatal CheckGccArgs
 
 PROJECT_DIR=..
 BIN_DIR=bin
-INPLACE_PACKAGE_CONF=$(PROJECT_DIR)/dist/package.conf.inplace
 
-# recommended to use cabal sandbox with local source ../
 all:
-	if [ ! -e .cabal-sandbox ] ; then \
-	  cabal configure --package-db $(INPLACE_PACKAGE_CONF) ; \
-	fi
-	cabal build
-	for b in $(BINARIES) ; do cp dist/build/$$b/$$b $(BIN_DIR) ; done
+	cabal v2-build
+	cabal v2-install --install-method symlink --installdir $(BIN_DIR)
 
 clean:
 	rm -f $(addprefix $(BIN_DIR)/, $(BINARIES))
-	cabal clean
+	cabal v2-lean
 	make -C harness clean
-
-../dist/package.conf.inplace:
-	echo "Please run cd .. && cabal build first"
-	exit 1
