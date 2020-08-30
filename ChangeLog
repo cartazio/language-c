@@ -5,6 +5,7 @@ Changes since 0.8.0
 	- Make `Trav` a monad transformer
 	- Add `runTravTWithTravState`
 	- Tests now use Cabal-3
+	- Implement alignment calculation and correct size calculation
 
 Changes since 0.7.0
 ==========================================================================
