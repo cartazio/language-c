@@ -1,6 +1,8 @@
 # Changelog
 
-# WIP
+## WIP
+
+## 0.9
 	- Make `Trav` a monad transformer
 	- Add `runTravTWithTravState`
 	- Tests now use Cabal-3
