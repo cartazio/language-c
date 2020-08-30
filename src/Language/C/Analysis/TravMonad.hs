@@ -1,5 +1,5 @@
 {-# LANGUAGE MultiParamTypeClasses, TypeSynonymInstances, FlexibleContexts,FlexibleInstances,
-             PatternGuards, RankNTypes, ScopedTypeVariables #-}
+             PatternGuards, RankNTypes, ScopedTypeVariables, LambdaCase #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Language.C.Analysis.TravMonad
@@ -41,7 +41,7 @@ module Language.C.Analysis.TravMonad (
     astError, warn,
     -- * Trav - default MonadTrav implementation
     Trav, TravT,
-    runTravT, runTrav, runTrav_,
+    runTravT, runTravTWithTravState, runTrav, runTrav_,
     TravState,initTravState,withExtDeclHandler,modifyUserState,userState,
     getUserState,
     TravOptions(..),modifyOptions,
@@ -390,15 +390,18 @@ instance Monad m => MonadState (TravState m s) (TravT s m) where
 
 runTravT :: forall m s a. Monad m => s -> TravT s m a -> m (Either [CError] (a, TravState m s))
 runTravT state traversal =
-    unTravT action (initTravState state) >>= \x -> return $ case x of
+    runTravTWithTravState (initTravState state) $ do
+      withDefTable (const ((), builtins))
+      traversal
+
+runTravTWithTravState :: forall s m a. Monad m => TravState m s -> TravT s m a -> m (Either [CError] (a, TravState m s))
+runTravTWithTravState state traversal =
+    unTravT traversal state >>= pure . \case
         Left trav_err                                 -> Left [trav_err]
         Right (v, ts) | hadHardErrors (travErrors ts) -> Left (travErrors ts)
                       | otherwise                     -> Right (v,ts)
-    where
-    action = do withDefTable (const ((), builtins))
-                traversal
 
-runTrav :: forall s a. s -> Trav s a -> (Either [CError] (a, TravState Identity s))
+runTrav :: forall s a. s -> Trav s a -> Either [CError] (a, TravState Identity s)
 runTrav state traversal = runIdentity (runTravT state (unTrav traversal))
 
 runTrav_ :: Trav () a -> Either [CError] (a,[CError])
