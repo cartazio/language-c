@@ -1,6 +1,11 @@
 Changes since 0.8.0
 ==========================================================================
 
+- 2020-08-30
+	- Make `Trav` a monad transformer
+	- Add `runTravTWithTravState`
+	- Tests now use Cabal-3
+
 Changes since 0.7.0
 ==========================================================================
 
