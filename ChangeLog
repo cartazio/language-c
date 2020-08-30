@@ -7,8 +7,9 @@
 	- Implement alignment calculation and correct size calculation
 	- Add `Show` instance for `Type`
 	- Add machine descriptions for x86_64 and armv7l
+	- Small correction in output of prettyprinter
 
-Thanks to @aweinstock314, @expipiplus1 and @visq
+Thanks to @aweinstock314, @ersran9, @expipiplus1, @jkoppel and @visq
 
 Changes since 0.7.0
 ==========================================================================
