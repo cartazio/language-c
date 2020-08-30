@@ -8,8 +8,9 @@
 	- Add `Show` instance for `Type`
 	- Add machine descriptions for x86_64 and armv7l
 	- Small correction in output of prettyprinter
+	- Allow zeros as line numbers in preprocessed directives
 
-Thanks to @aweinstock314, @ersran9, @expipiplus1, @jkoppel and @visq
+Thanks to @aweinstock314, @ersran9, @expipiplus1, @jkoppel, @trofi and @visq
 
 Changes since 0.7.0
 ==========================================================================
