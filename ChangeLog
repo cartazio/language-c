@@ -1,13 +1,14 @@
-Changes since 0.8.0
-==========================================================================
+# Changelog
 
-- 2020-08-30
+# WIP
 	- Make `Trav` a monad transformer
 	- Add `runTravTWithTravState`
 	- Tests now use Cabal-3
 	- Implement alignment calculation and correct size calculation
 	- Add `Show` instance for `Type`
 	- Add machine descriptions for x86_64 and armv7l
+
+Thanks to @aweinstock314, @expipiplus1 and @visq
 
 Changes since 0.7.0
 ==========================================================================
