@@ -1,5 +1,5 @@
 Name:           language-c
-Version:        0.8.3
+Version:        0.9
 Cabal-Version:  >= 1.8
 Build-Type:     Simple
 License:        BSD3
@@ -116,6 +116,7 @@ Library
                       Language.C.Analysis.TypeConversions
                       Language.C.Analysis.TypeUtils
                       Language.C.Analysis.NameSpaceMap
+                      Language.C.Analysis.MachineDescs
                       -- semrep -> code [alpha]
                       Language.C.Analysis.Export
     Other-Modules:
