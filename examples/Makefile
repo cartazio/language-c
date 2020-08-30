@@ -7,7 +7,7 @@ BIN_DIR=.
 all: build
 build:
 	cabal v2-build
-	cabal v2-install --install-method symlink --installdir $(BIN_DIR)
+	cabal v2-install --install-method symlink --overwrite-policy always --installdir $(BIN_DIR)
 
 demo_compute_size: ComputeSize
 	gcc -DDEBUG compute_size.c -o compute_size.bin && ./compute_size.bin

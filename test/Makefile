@@ -6,7 +6,7 @@ BIN_DIR=bin
 
 all:
 	cabal v2-build
-	cabal v2-install --install-method symlink --installdir $(BIN_DIR)
+	cabal v2-install --install-method symlink --overwrite-policy always --installdir $(BIN_DIR)
 
 clean:
 	rm -f $(addprefix $(BIN_DIR)/, $(BINARIES))
