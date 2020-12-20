@@ -9,4 +9,9 @@ let
 in haskellPackages.developPackage {
   name = "language-c";
   root = pkgs.nix-gitignore.gitignoreSource [ ] ./.;
+  modifier = drv:
+    with pkgs.haskell.lib;
+    addBuildTools (dontCheck drv)
+    (with pkgs; [ perl ruby haskellPackages.cabal-install ]);
+  withHoogle = false; # TODO: Why doesn't this work
 }
