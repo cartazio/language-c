@@ -2,6 +2,12 @@
 
 ## WIP
 
+## 0.9.0.1
+
+	- Scrap dependency on syb
+
+Thanks to @vmchale
+
 ## 0.9
 	- Make `Trav` a monad transformer
 	- Add `runTravTWithTravState`
