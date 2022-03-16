@@ -2,6 +2,8 @@
 
 ## WIP
 
+	- Correct lower bound on GHC
+
 ## 0.9.0.1
 
 	- Scrap dependency on syb
