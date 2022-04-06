@@ -2,6 +2,10 @@
 
 ## WIP
 
+## 0.9.1
+
+  - Support parsing an empty list of clobbers after a colon in `asm` statements
+
 ## 0.9.0.2
 
 	- Correct lower bound on GHC
