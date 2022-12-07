@@ -468,6 +468,7 @@ data CTypeSpecifier a
   | CBoolType    a
   | CComplexType a
   | CInt128Type  a
+  | CUInt128Type a
   | CFloatNType Int Bool a           -- ^ IEC 60227: width (32,64,128), extended flag
   | CSUType      (CStructureUnion a) a      -- ^ Struct or Union specifier
   | CEnumType    (CEnumeration a)    a      -- ^ Enumeration specifier

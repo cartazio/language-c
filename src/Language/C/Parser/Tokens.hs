@@ -102,6 +102,7 @@ data CToken = CTokLParen   !PosLength            -- `('
                                                 -- `__inline__')
             | CTokInt      !PosLength            -- `int'
             | CTokInt128   !PosLength            -- `__int128`
+                                                 -- (or `__int128_t`)
             | CTokLong     !PosLength            -- `long'
             | CTokLabel    !PosLength            -- `__label__
             | CTokNoreturn !PosLength            -- `_Noreturn'
@@ -124,6 +125,8 @@ data CToken = CTokLParen   !PosLength            -- `('
             | CTokTypedef  !PosLength            -- `typedef'
             | CTokTypeof   !PosLength            -- `typeof'
             | CTokThread   !PosLength            -- `__thread'
+            | CTokUInt128  !PosLength            -- `__uint128`
+                                                 -- (or `__uint128_t`)
             | CTokUnion    !PosLength            -- `union'
             | CTokUnsigned !PosLength            -- `unsigned'
             | CTokVoid     !PosLength            -- `void'
@@ -257,6 +260,7 @@ posLenOfTok (CTokSwitch   pos  ) = pos
 posLenOfTok (CTokTypedef  pos  ) = pos
 posLenOfTok (CTokTypeof   pos  ) = pos
 posLenOfTok (CTokThread   pos  ) = pos
+posLenOfTok (CTokUInt128  pos  ) = pos
 posLenOfTok (CTokUnion    pos  ) = pos
 posLenOfTok (CTokUnsigned pos  ) = pos
 posLenOfTok (CTokVoid     pos  ) = pos
@@ -370,6 +374,7 @@ instance Show CToken where
   showsPrec _ (CTokTypedef  _  ) = showString "typedef"
   showsPrec _ (CTokTypeof   _  ) = showString "typeof"
   showsPrec _ (CTokThread   _  ) = showString "_Thread_local"
+  showsPrec _ (CTokUInt128  _  ) = showString "__uint128"
   showsPrec _ (CTokUnion    _  ) = showString "union"
   showsPrec _ (CTokUnsigned _  ) = showString "unsigned"
   showsPrec _ (CTokVoid     _  ) = showString "void"

@@ -215,6 +215,7 @@ if		{ CTokIf	_ }
 inline		{ CTokInline	_ }
 int		{ CTokInt	_ }
 "__int128"      { CTokInt128    _ }
+"__int128_t"    { CTokInt128    _ }
 long		{ CTokLong	_ }
 "__label__"	{ CTokLabel	_ }
 "_Noreturn"     { CTokNoreturn  _ }
@@ -234,6 +235,8 @@ typedef		{ CTokTypedef	_ }
 typeof		{ CTokTypeof	_ }
 "__thread"	{ CTokThread	_ }
 union		{ CTokUnion	_ }
+"__uint128"     { CTokUInt128   _ }
+"__uint128_t"   { CTokUInt128   _ }
 unsigned	{ CTokUnsigned	_ }
 void		{ CTokVoid	_ }
 volatile	{ CTokVolatile	_ }
@@ -892,6 +895,7 @@ basic_type_name
   | "_Bool"			{% withNodeInfo $1 $ CBoolType }
   | "_Complex"			{% withNodeInfo $1 $ CComplexType }
   | "__int128"                  {% withNodeInfo $1 $ CInt128Type }
+  | "__uint128"                 {% withNodeInfo $1 $ CUInt128Type }
   | "_Float32"                  {% withNodeInfo $1 $ (CFloatNType 32 False) }
   | "_Float32x"                 {% withNodeInfo $1 $ (CFloatNType 32 True) }
   | "_Float64"                  {% withNodeInfo $1 $ (CFloatNType 64 False) }
