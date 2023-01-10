@@ -249,13 +249,14 @@ instance Pretty CTypeSpec where
     pretty (CLongType _)        = text "long"
     pretty (CFloatType _)       = text "float"
     pretty (CFloatNType n x _)  = text "_Float" <> text (show n) <>
-                                  (if x then text "x" else empty) 
+                                  (if x then text "x" else empty)
     pretty (CDoubleType _)      = text "double"
     pretty (CSignedType _)      = text "signed"
     pretty (CUnsigType _)       = text "unsigned"
     pretty (CBoolType _)        = text "_Bool"
     pretty (CComplexType _)     = text "_Complex"
     pretty (CInt128Type _)      = text "__int128"
+    pretty (CUInt128Type _)     = text "__uint128"
     pretty (CSUType union _)    = pretty union
     pretty (CEnumType enum _)   = pretty enum
     pretty (CTypeDef ident _)   = identP ident
