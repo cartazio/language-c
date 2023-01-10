@@ -2,6 +2,10 @@
 
 ## WIP
 
+## 0.9.2
+
+- Add support for 128 bit builtin integer types
+
 ## 0.9.1
 
   - Support parsing an empty list of clobbers after a colon in `asm` statements
