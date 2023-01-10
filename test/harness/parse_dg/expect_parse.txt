@@ -687,10 +687,12 @@ atomic-compare-exchange-1.i
 atomic-compare-exchange-2.i
 atomic-compare-exchange-3.i
 atomic-compare-exchange-4.i
+atomic-compare-exchange-5.i
 atomic-exchange-1.i
 atomic-exchange-2.i
 atomic-exchange-3.i
 atomic-exchange-4.i
+atomic-exchange-5.i
 atomic-fence.i
 atomic-fetch-bool.i
 atomic-flag.i
@@ -701,6 +703,8 @@ atomic-load-1.i
 atomic-load-2.i
 atomic-load-3.i
 atomic-load-4.i
+atomic-load-5.i
+atomic-load-int128.i
 atomic-load-int.i
 atomic-load-longlong.i
 atomic-load-short.i
@@ -712,7 +716,9 @@ atomic-op-1.i
 atomic-op-2.i
 atomic-op-3.i
 atomic-op-4.i
+atomic-op-5.i
 atomic-op-optimize.i
+atomic-other-int128.i
 atomic-other-int.i
 atomic-other-longlong.i
 atomic-other-short.i
@@ -722,6 +728,8 @@ atomic-store-1.i
 atomic-store-2.i
 atomic-store-3.i
 atomic-store-4.i
+atomic-store-5.i
+atomic-store-6.i
 attr-1.i
 attr-2.i
 attr-3.i
@@ -1468,8 +1476,8 @@ const-float128.i
 const-float128-ped.i
 constructor-1.i
 const-uniq_0.i
-const-uniq_1.i
 const-uniq-1.i
+const-uniq_1.i
 const-volatile.i
 conv-1.i
 conv-2.i
@@ -1746,13 +1754,6 @@ fixuns-trunc-1.i
 flatten-1.i
 flatten-2.i
 flatten-3.i
-float-cast-overflow-bf.i
-float-exact-1.i
-float-range-1.i
-float-range-2.i
-float-range-3.i
-float-range-4.i
-float-range-5.i
 float128-cmp-invalid.i
 float128-div-underflow.i
 float128-exact-underflow.i
@@ -1761,6 +1762,13 @@ float128-extendxf-underflow.i
 float128-mul-underflow.i
 float128-truncdf-underflow.i
 float128-truncsf-underflow.i
+float-cast-overflow-bf.i
+float-exact-1.i
+float-range-1.i
+float-range-2.i
+float-range-3.i
+float-range-4.i
+float-range-5.i
 flush-1.i
 flush-2.i
 fnegate-1.i
@@ -1912,12 +1920,13 @@ forwprop-7.i
 forwprop-8.i
 forwprop-9.i
 fp-compare.i
+fp-int-convert-2.i
 fp-int-convert-double.i
-fp-int-convert-float.i
+fp-int-convert-float128.i
 fp-int-convert-float128-timode-2.i
 fp-int-convert-float128-timode-3.i
 fp-int-convert-float128-timode.i
-fp-int-convert-float128.i
+fp-int-convert-float.i
 fp-int-convert-long-double.i
 fp-int-convert-timode.i
 free-1.i
@@ -4313,6 +4322,7 @@ pr47725.i
 pr47727.i
 pr47743.i
 pr47744-1.i
+pr47744-2.i
 pr47744-3.i
 pr47763.i
 pr47766.i
@@ -4748,6 +4758,7 @@ pr55525_1.i
 pr55555.i
 pr55570.i
 pr55579.i
+pr55633.i
 pr55660_0.i
 pr55660_1.i
 pr55684.i
@@ -4808,6 +4819,7 @@ pr56384.i
 pr56396.i
 pr56407.i
 pr56417.i
+pr56420.i
 pr56424.i
 pr56436.i
 pr56443.i
@@ -5289,6 +5301,7 @@ pr64715-2.i
 pr64728.i
 pr64766.i
 pr64801.i
+pr64807.i
 pr64817-1.i
 pr64817-2.i
 pr64817-3.i
@@ -7835,6 +7848,7 @@ Wframe-larger-than.i
 wholeprogram-1.i
 wholeprogram-2.i
 wide-int-test-1.i
+wide-shift-128.i
 wide-shift-64.i
 Wimplicit-function-declaration-c89-default.i
 Wimplicit-function-declaration-c89.i

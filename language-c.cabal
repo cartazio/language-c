@@ -1,5 +1,5 @@
 Name:           language-c
-Version:        0.9.1
+Version:        0.9.2
 Cabal-Version:  >= 1.10
 Build-Type:     Simple
 License:        BSD3
@@ -16,7 +16,7 @@ Description:    Language C is a haskell library for the analysis and generation 
                 It features a complete, well tested parser and pretty printer for all of C99 and a large
                 set of C11 and clang/GNU extensions.
 Category:       Language
-Tested-With:    GHC == 8.0.*, GHC == 8.2.*, GHC == 8.4.*, GHC == 8.6.*, GHC == 8.8.*, GHC == 8.10.*
+Tested-With:    GHC == 8.4.*, GHC == 8.6.*, GHC == 8.8.*, GHC == 8.10.*, GHC == 9.0.*, GHC == 9.2.*
 
 Extra-Source-Files: AUTHORS AUTHORS.c2hs ChangeLog README
                     src/Language/C/Parser/Lexer.x

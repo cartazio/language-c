@@ -46,16 +46,8 @@ arm-fp16-ops-7.i
 arm-fp16-ops-8.i
 asm2.i
 asmgoto-1.i
-atomic-compare-exchange-5.i
-atomic-exchange-5.i
 atomic.i
 atomic-invalid-2.i
-atomic-load-5.i
-atomic-load-int128.i
-atomic-op-5.i
-atomic-other-int128.i
-atomic-store-5.i
-atomic-store-6.i
 auto-type-1.i
 auto-type-2.i
 avoidpaste1.i
@@ -198,7 +190,6 @@ fltconst-double-pedantic-2.i
 fltconst-pedantic-dfp.i
 fold-nonneg-1.i
 for-1.i
-fp-int-convert-2.i
 fp-int-convert-float80.i
 fp-int-convert-float80-timode.i
 fpreprocessed.i
@@ -335,7 +326,6 @@ pr45985.i
 pr46068.i
 pr46654.i
 pr47690.i
-pr47744-2.i
 pr47905.i
 pr48204.i
 pr48928.i
@@ -354,9 +344,7 @@ pr53992.i
 pr54127.i
 pr54355.i
 pr55401.i
-pr55633.i
 pr56108.i
-pr56420.i
 pr58670.i
 pr59323_0.i
 pr59323-2_0.i
@@ -367,7 +355,6 @@ pr61692.i
 pr61772.i
 pr61977.i
 pr64778.i
-pr64807.i
 pr65228.i
 pr65980.i
 pr67432.i
@@ -499,7 +486,6 @@ warn-trigraphs-2.i
 warn-trigraphs-3.i
 warn-trigraphs-4.i
 Wbad-function-cast-1.i
-wide-shift-128.i
 Wold-style-definition-2.i
 Woverlength-strings-pedantic-c89-asm.i
 Woverlength-strings-pedantic-c90-asm.i
