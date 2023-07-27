@@ -1117,10 +1117,12 @@ struct_or_union_specifier :: { CStructUnion }
 struct_or_union_specifier
   : struct_or_union attrs_opt identifier '{' struct_declaration_list  '}'
   	{% withNodeInfo $1 $ CStruct (unL $1) (Just $3) (Just$ reverse $5) $2 }
-
+  | struct_or_union attrs_opt identifier '{' alignment_specifier struct_declaration_list '}'
+        {% withNodeInfo $1 $ CStruct (unL $1) (Just $3) (Just$ (Prelude.map (\(CDecl list list2 a) -> CDecl ((CAlignSpec $5) : list) list2 a) (reverse $6))) $2 }
   | struct_or_union attrs_opt '{' struct_declaration_list  '}'
   	{% withNodeInfo $1 $ CStruct (unL $1) Nothing   (Just$ reverse $4) $2 }
-
+  | struct_or_union attrs_opt '{' alignment_specifier struct_declaration_list '}'
+        {% withNodeInfo $1 $ CStruct (unL $1) Nothing (Just$ (Prelude.map (\(CDecl list list2 a) -> CDecl ((CAlignSpec $4) : list) list2 a) (reverse $5))) $2 }
   | struct_or_union attrs_opt identifier
   	{% withNodeInfo $1 $ CStruct (unL $1) (Just $3) Nothing $2 }
 
